@@ -1,0 +1,25 @@
+{
+  "id": "fall_detection",
+  "name": "Fall detection (pose heuristic)",
+  "nodes": [
+    { "id": "src", "type": "source.camera", "config": { "camera_id": "REPLACE_ME" } },
+    { "id": "pose", "type": "detector.pose",
+      "config": { "model_complexity": 1, "min_confidence": 0.5, "detect_fall": true } },
+    { "id": "match", "type": "condition.metadata_match",
+      "config": { "expression": "d.label == 'pose:fallen'" } },
+    { "id": "cool", "type": "condition.cooldown",
+      "config": { "cooldown_s": 30, "scope": "per_camera" } },
+    { "id": "po", "type": "sink.pushover",
+      "config": { "priority": 2, "title": "🚑 Possible fall",
+                   "template": "Possible fall on {camera_id} — review immediately" } },
+    { "id": "rec", "type": "sink.recorder",
+      "config": { "pre_roll_s": 5, "post_roll_s": 60 } }
+  ],
+  "edges": [
+    { "from": "src.frame", "to": "pose.frame" },
+    { "from": "pose.detections", "to": "match.detections" },
+    { "from": "match.match", "to": "cool.payload" },
+    { "from": "cool.match", "to": "po.payload" },
+    { "from": "cool.match", "to": "rec.trigger" }
+  ]
+}

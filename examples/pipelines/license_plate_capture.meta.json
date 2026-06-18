@@ -1,0 +1,8 @@
+{
+  "name": "License-plate capture (YOLO → OCR)",
+  "description": "YOLO finds cars; OCR reads text inside each car bbox; results land in the SQLite events table and an annotated stream tile on the dashboard.",
+  "use_case": "Parking lot / driveway plate logger. EasyOCR isn't ALPR-grade but reads many plates legibly; first run downloads ~600MB of weights.",
+  "tags": ["traffic", "ocr", "alpr"],
+  "complexity": "advanced",
+  "placeholders": ["REPLACE_ME"]
+}

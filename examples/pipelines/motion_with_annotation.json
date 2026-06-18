@@ -1,0 +1,24 @@
+{
+  "id": "motion_with_annotation",
+  "name": "Motion blobs (no ML model)",
+  "nodes": [
+    { "id": "src", "type": "source.camera", "config": { "camera_id": "REPLACE_ME" } },
+    { "id": "mog", "type": "detector.mog2",
+      "config": { "history": 500, "var_threshold": 16, "min_area": 800 } },
+    { "id": "annot", "type": "transform.annotate",
+      "config": { "color": [255, 100, 100], "thickness": 2, "show_score": false } },
+    { "id": "stream", "type": "sink.stream",
+      "config": { "label": "Motion overlay", "fps": 15 } },
+    { "id": "throttle", "type": "transform.throttle", "config": { "interval_s": 10 } },
+    { "id": "log", "type": "sink.console",
+      "config": { "format": "compact", "prefix": "[motion] " } }
+  ],
+  "edges": [
+    { "from": "src.frame", "to": "mog.frame" },
+    { "from": "src.frame", "to": "annot.frame" },
+    { "from": "mog.detections", "to": "annot.detections" },
+    { "from": "annot.frame", "to": "stream.frame" },
+    { "from": "mog.detections", "to": "throttle.payload" },
+    { "from": "throttle.payload", "to": "log.payload" }
+  ]
+}

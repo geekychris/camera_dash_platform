@@ -1,0 +1,8 @@
+{
+  "name": "Office occupancy counter",
+  "description": "Counts visible people every 60s; alerts via MQTT when 5+ are seen.",
+  "use_case": "Conference room / open office / shop floor. Use the MQTT topic to drive a smart-home automation (turn on AC, dim lights, etc.).",
+  "tags": ["office", "counting", "mqtt"],
+  "complexity": "simple",
+  "placeholders": ["REPLACE_ME"]
+}

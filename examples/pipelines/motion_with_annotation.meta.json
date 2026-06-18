@@ -1,0 +1,8 @@
+{
+  "name": "Motion blobs (no ML model)",
+  "description": "MOG2 background subtraction draws boxes around every moving blob; annotated stream goes to the dashboard, throttled console log every 10s.",
+  "use_case": "Works on FLIR thermal too (no labels needed). Good baseline for 'something is moving' before adding a real classifier.",
+  "tags": ["motion", "no_ml", "thermal_friendly"],
+  "complexity": "simple",
+  "placeholders": ["REPLACE_ME"]
+}

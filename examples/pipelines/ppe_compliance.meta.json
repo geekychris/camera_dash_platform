@@ -1,0 +1,9 @@
+{
+  "name": "PPE compliance",
+  "description": "Open-vocab detection of 'person', 'hard hat', 'safety vest'. Set-level metadata_match expression fires when there's a person in frame but no hard hat. Cooldown so it doesn't spam.",
+  "use_case": "Construction site / factory entry. Demonstrates set-level boolean logic (`any: false` + an expression that references the whole `dets` array).",
+  "tags": ["industrial", "safety", "yolo_world"],
+  "complexity": "advanced",
+  "requires_env": ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"],
+  "placeholders": ["REPLACE_ME"]
+}

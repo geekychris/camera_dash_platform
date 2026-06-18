@@ -1,0 +1,8 @@
+{
+  "name": "Multi-camera branching",
+  "description": "Two cameras feed independent detection chains routing different classes (dog → MQTT, person → webhook). Demonstrates that pipelines aren't single-source.",
+  "use_case": "Example of fan-out / fan-in in one pipeline definition.",
+  "tags": ["multi_cam", "branching"],
+  "complexity": "advanced",
+  "placeholders": ["cam-a", "cam-b"]
+}

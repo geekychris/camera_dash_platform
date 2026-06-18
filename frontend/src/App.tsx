@@ -4,10 +4,12 @@ import PipelineEditor from "./editor/PipelineEditor";
 import CameraManager from "./cameras/CameraManager";
 import EventStream from "./events/EventStream";
 import ClipsBrowser from "./clips/ClipsBrowser";
+import ExamplesGallery from "./examples/ExamplesGallery";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/editor", label: "Pipelines" },
+  { to: "/examples", label: "Examples" },
   { to: "/cameras", label: "Cameras" },
   { to: "/clips", label: "Clips" },
   { to: "/events", label: "Events" },
@@ -33,6 +35,7 @@ export default function App() {
           <Route path="/editor" element={<PipelineEditor />} />
           <Route path="/editor/:id" element={<PipelineEditor />} />
           <Route path="/cameras" element={<CameraManager />} />
+          <Route path="/examples" element={<ExamplesGallery />} />
           <Route path="/clips" element={<ClipsBrowser />} />
           <Route path="/events" element={<EventStream />} />
         </Routes>

@@ -1,0 +1,26 @@
+{
+  "id": "office_occupancy",
+  "name": "Office occupancy counter",
+  "nodes": [
+    { "id": "src", "type": "source.camera", "config": { "camera_id": "REPLACE_ME" } },
+    { "id": "yolo", "type": "detector.yolo",
+      "config": { "classes": ["person"], "conf": 0.4,
+                   "device": "${profile.default_device}" } },
+    { "id": "trk", "type": "transform.tracker", "config": { "frame_rate": 5 } },
+    { "id": "throttle", "type": "transform.throttle", "config": { "interval_s": 60 } },
+    { "id": "counter", "type": "condition.counter",
+      "config": { "label": "person", "min_count": 5 } },
+    { "id": "mqtt", "type": "sink.mqtt",
+      "config": { "broker": "tcp://localhost:1883",
+                   "topic": "office/occupancy/over_limit", "qos": 0 } },
+    { "id": "log", "type": "sink.console", "config": { "prefix": "[occupancy] " } }
+  ],
+  "edges": [
+    { "from": "src.frame", "to": "yolo.frame" },
+    { "from": "yolo.detections", "to": "trk.payload" },
+    { "from": "trk.payload", "to": "throttle.payload" },
+    { "from": "throttle.payload", "to": "counter.payload" },
+    { "from": "counter.match", "to": "mqtt.payload" },
+    { "from": "counter.match", "to": "log.payload" }
+  ]
+}

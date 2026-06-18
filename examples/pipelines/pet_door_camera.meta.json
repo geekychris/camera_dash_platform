@@ -1,0 +1,9 @@
+{
+  "name": "Pet door — log + record",
+  "description": "Records a clip + logs every time a dog or cat shows up. Debounced per-(camera,label) so you don't get 50 events per door-trip.",
+  "use_case": "Pet door / mudroom / dog run camera. Replace REPLACE_ME with the camera id pointed at the door.",
+  "tags": ["home", "pets"],
+  "complexity": "simple",
+  "requires_env": [],
+  "placeholders": ["REPLACE_ME"]
+}

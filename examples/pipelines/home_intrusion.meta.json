@@ -1,0 +1,10 @@
+{
+  "name": "Home intrusion alert",
+  "description": "When a person appears on a camera, record a 30s clip (with 5s pre-roll) and push to ntfy.sh. Debounced to once every 90s per camera.",
+  "use_case": "Front-door or backyard camera. Combines person detection, tracking, cooldown, recording, and push notification — the canonical 'alert me when someone shows up' pipeline.",
+  "tags": ["home", "intrusion", "alerts"],
+  "complexity": "simple",
+  "requires_env": [],
+  "requires_camera_kinds": ["uvc", "rtsp", "oak"],
+  "placeholders": ["REPLACE_ME"]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Thermal hotspot → MQTT + clip",
+  "description": "FLIR-only pipeline that fires when any pixel exceeds 60°C; MQTT + 30s clip.",
+  "use_case": "Industrial / safety monitoring on a thermal feed. Pair the camera with proper radiometric mode first.",
+  "tags": ["thermal", "safety"],
+  "complexity": "simple",
+  "placeholders": []
+}

@@ -1,0 +1,28 @@
+{
+  "id": "vehicle_line_counting",
+  "name": "Vehicle line crossing",
+  "nodes": [
+    { "id": "src", "type": "source.camera", "config": { "camera_id": "REPLACE_ME" } },
+    { "id": "yolo", "type": "detector.yolo",
+      "config": { "classes": ["car", "truck", "bus", "motorcycle"], "conf": 0.4,
+                   "device": "${profile.default_device}" } },
+    { "id": "trk", "type": "transform.tracker", "config": { "frame_rate": 10 } },
+    { "id": "line", "type": "condition.line_crossing",
+      "config": {
+        "line": [[0, 360], [1280, 360]],
+        "direction": "any",
+        "classes": ["car", "truck", "bus", "motorcycle"]
+      } },
+    { "id": "kafka", "type": "sink.kafka",
+      "config": { "bootstrap_servers": "localhost:9092",
+                   "topic": "traffic.crossings", "client_id": "camera_dash" } },
+    { "id": "sqlite", "type": "sink.sqlite", "config": {} }
+  ],
+  "edges": [
+    { "from": "src.frame", "to": "yolo.frame" },
+    { "from": "yolo.detections", "to": "trk.payload" },
+    { "from": "trk.payload", "to": "line.payload" },
+    { "from": "line.match", "to": "kafka.payload" },
+    { "from": "line.match", "to": "sqlite.payload" }
+  ]
+}

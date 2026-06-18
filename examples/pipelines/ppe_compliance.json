@@ -1,0 +1,32 @@
+{
+  "id": "ppe_compliance",
+  "name": "PPE compliance (person without hard hat)",
+  "nodes": [
+    { "id": "src", "type": "source.camera", "config": { "camera_id": "REPLACE_ME" } },
+    { "id": "yw", "type": "detector.yolo_world",
+      "config": {
+        "model": "yolov8s-worldv2.pt",
+        "device": "${profile.default_device}",
+        "classes": ["person", "hard hat", "safety vest"],
+        "conf": 0.1
+      } },
+    { "id": "match", "type": "condition.metadata_match",
+      "config": {
+        "expression": "any(x.label == 'person' for x in dets) and not any(x.label in ('hard hat',) for x in dets)",
+        "any": false
+      } },
+    { "id": "cool", "type": "condition.cooldown",
+      "config": { "cooldown_s": 60, "scope": "per_camera" } },
+    { "id": "tg", "type": "sink.telegram",
+      "config": { "template": "⚠️ PPE violation on `{camera_id}` — person without hard hat" } },
+    { "id": "rec", "type": "sink.recorder",
+      "config": { "pre_roll_s": 5, "post_roll_s": 20 } }
+  ],
+  "edges": [
+    { "from": "src.frame", "to": "yw.frame" },
+    { "from": "yw.detections", "to": "match.detections" },
+    { "from": "match.match", "to": "cool.payload" },
+    { "from": "cool.match", "to": "tg.payload" },
+    { "from": "cool.match", "to": "rec.trigger" }
+  ]
+}

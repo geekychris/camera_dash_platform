@@ -1,0 +1,9 @@
+{
+  "name": "Night perimeter (zone + schedule)",
+  "description": "High-priority Pushover alert + clip when a person enters a polygon zone, but only between 21:00 and 06:00.",
+  "use_case": "Yard / driveway monitoring where daytime traffic is fine but nighttime entry is suspicious. Demonstrates condition chaining (zone → schedule → cooldown).",
+  "tags": ["home", "security", "zones", "schedule", "pushover"],
+  "complexity": "medium",
+  "requires_env": ["PUSHOVER_APP_TOKEN", "PUSHOVER_USER_KEY"],
+  "placeholders": ["REPLACE_ME"]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Vehicle line crossing → Kafka + SQLite",
+  "description": "Tracks vehicles, fires one event per vehicle that crosses a horizontal line. Events go to Kafka (for downstream analytics) and the SQLite events table (for ad-hoc query).",
+  "use_case": "Intersection / driveway / parking-lot exit counter. Tweak the `line` coords (use the polygon editor in the dashboard) to match your camera angle.",
+  "tags": ["traffic", "counting", "kafka"],
+  "complexity": "medium",
+  "placeholders": ["REPLACE_ME"]
+}

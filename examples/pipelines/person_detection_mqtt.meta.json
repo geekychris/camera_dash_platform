@@ -1,0 +1,8 @@
+{
+  "name": "Person detection → MQTT",
+  "description": "Simplest possible YOLO person detection chain. Matched detections go to MQTT and SQLite.",
+  "use_case": "Smoke test / starting template. Replace REPLACE_ME with your camera id.",
+  "tags": ["simple", "mqtt"],
+  "complexity": "simple",
+  "placeholders": ["cam-front"]
+}

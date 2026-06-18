@@ -1,0 +1,34 @@
+{
+  "id": "night_perimeter",
+  "name": "Night perimeter (zone + schedule)",
+  "nodes": [
+    { "id": "src", "type": "source.camera", "config": { "camera_id": "REPLACE_ME" } },
+    { "id": "yolo", "type": "detector.yolo",
+      "config": { "classes": ["person"], "conf": 0.35,
+                   "device": "${profile.default_device}" } },
+    { "id": "trk", "type": "transform.tracker", "config": { "frame_rate": 10 } },
+    { "id": "zone", "type": "condition.zone",
+      "config": {
+        "polygon": [[50, 50], [800, 50], [800, 600], [50, 600]],
+        "fire_on": "enter", "classes": ["person"]
+      } },
+    { "id": "sched", "type": "condition.schedule",
+      "config": { "windows": [{ "start": "21:00", "end": "06:00" }] } },
+    { "id": "cool", "type": "condition.cooldown",
+      "config": { "cooldown_s": 120, "scope": "per_camera" } },
+    { "id": "po", "type": "sink.pushover",
+      "config": { "priority": 1, "title": "🌙 Night perimeter",
+                   "template": "Person on {camera_id} at {kind} — payload {summary}" } },
+    { "id": "rec", "type": "sink.recorder",
+      "config": { "pre_roll_s": 6, "post_roll_s": 30 } }
+  ],
+  "edges": [
+    { "from": "src.frame", "to": "yolo.frame" },
+    { "from": "yolo.detections", "to": "trk.payload" },
+    { "from": "trk.payload", "to": "zone.payload" },
+    { "from": "zone.match", "to": "sched.payload" },
+    { "from": "sched.match", "to": "cool.payload" },
+    { "from": "cool.match", "to": "po.payload" },
+    { "from": "cool.match", "to": "rec.trigger" }
+  ]
+}

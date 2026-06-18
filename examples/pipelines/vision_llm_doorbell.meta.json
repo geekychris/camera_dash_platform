@@ -1,0 +1,9 @@
+{
+  "name": "Doorbell describer (Claude)",
+  "description": "When a person is detected at the door, Claude looks at the frame and writes a one-sentence description ('a UPS driver carrying a small package'). The description is what gets pushed to Telegram — way more useful than 'person detected'.",
+  "use_case": "Front-door camera. Demonstrates wiring vision_llm with a trigger so it only fires on real events (saves tokens). Throttled to one call per 30s.",
+  "tags": ["home", "ai", "vision_llm", "telegram"],
+  "complexity": "advanced",
+  "requires_env": ["ANTHROPIC_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"],
+  "placeholders": ["REPLACE_ME"]
+}

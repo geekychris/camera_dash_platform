@@ -1,0 +1,8 @@
+{
+  "name": "Driveway arrival",
+  "description": "Push + 30s clip when a car/truck/motorcycle pulls in, debounced 2 minutes.",
+  "use_case": "Driveway-facing camera. Useful for 'someone is here' even when the doorbell isn't pressed.",
+  "tags": ["home", "vehicles", "alerts"],
+  "complexity": "simple",
+  "placeholders": ["REPLACE_ME"]
+}

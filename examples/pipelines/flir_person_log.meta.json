@@ -1,0 +1,8 @@
+{
+  "name": "FLIR person detection → annotated stream + log",
+  "description": "Runs YOLO on the colormapped FLIR thermal frames; annotates with green boxes; logs detections every 5 seconds.",
+  "use_case": "Demo of thermal + ML — surprisingly works (YOLO sees the human silhouette in the inferno colormap).",
+  "tags": ["thermal", "yolo", "demo"],
+  "complexity": "medium",
+  "placeholders": []
+}

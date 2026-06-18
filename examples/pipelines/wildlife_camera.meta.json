@@ -1,0 +1,8 @@
+{
+  "name": "Wildlife camera (open-vocab)",
+  "description": "Uses YOLO-World with text prompts to detect deer/birds/raccoons/etc. Streams annotated video back to the dashboard + records a clip per cooldown window.",
+  "use_case": "Garden / trail / backyard camera. Edit `classes` to whatever critters you care about — YOLO-World accepts arbitrary text strings.",
+  "tags": ["outdoor", "wildlife", "yolo_world"],
+  "complexity": "medium",
+  "placeholders": ["REPLACE_ME"]
+}

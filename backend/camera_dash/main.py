@@ -15,6 +15,7 @@ from .api import cameras as api_cameras
 from .api import clips as api_clips
 from .api import draft as api_draft
 from .api import events as api_events
+from .api import examples as api_examples
 from .api import pipelines as api_pipelines
 from .api import plugins as api_plugins
 from .api import radiometric as api_radiometric
@@ -144,6 +145,7 @@ app.include_router(api_clips.router, prefix="/api/clips", tags=["clips"])
 app.include_router(api_stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(api_snapshots.router, prefix="/api/snapshots", tags=["snapshots"])
 app.include_router(api_templates.router, prefix="/api/templates", tags=["pipelines"])
+app.include_router(api_examples.router, prefix="/api/examples", tags=["pipelines"])
 app.include_router(api_draft.router, prefix="/api/draft", tags=["pipelines"])
 
 

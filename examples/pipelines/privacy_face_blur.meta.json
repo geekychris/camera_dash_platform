@@ -1,0 +1,8 @@
+{
+  "name": "Privacy: blur all faces",
+  "description": "Detects faces via MediaPipe, pixelates each face in the frame, publishes the privacy-safe video as a derived stream tile on the dashboard.",
+  "use_case": "Showing a feed in a public/shared space where you can't show identifiable faces (storefronts, recordings for analytics, demos). The original stream stays available unblurred — only the derived stream is masked.",
+  "tags": ["privacy", "compliance"],
+  "complexity": "simple",
+  "placeholders": ["REPLACE_ME"]
+}

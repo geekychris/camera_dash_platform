@@ -1,0 +1,9 @@
+{
+  "name": "Fall detection (pose heuristic)",
+  "description": "MediaPipe pose + a simple 'shoulder-to-ankle vector is horizontal' heuristic. Fires an emergency-priority Pushover alert and records a 60s clip on suspected falls.",
+  "use_case": "Elder-care or warehouse safety camera. The heuristic is intentionally simple; tune by editing the threshold in `detector.pose`. Pair with a `vision_llm` for human-readable context if you want to reduce false positives.",
+  "tags": ["safety", "pose", "elderly"],
+  "complexity": "medium",
+  "requires_env": ["PUSHOVER_APP_TOKEN", "PUSHOVER_USER_KEY"],
+  "placeholders": ["REPLACE_ME"]
+}

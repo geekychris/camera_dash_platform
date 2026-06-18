@@ -1,0 +1,8 @@
+{
+  "name": "Laptop camera → annotated stream + log",
+  "description": "Parallel pipeline to the FLIR demo, but on the visible-light webcam. Useful comparison.",
+  "use_case": "Baseline detection demo. Uses 'laptop' camera id — change to your built-in or any UVC camera.",
+  "tags": ["demo", "yolo"],
+  "complexity": "simple",
+  "placeholders": []
+}

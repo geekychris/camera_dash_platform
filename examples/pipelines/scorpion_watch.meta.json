@@ -1,0 +1,8 @@
+{
+  "name": "Scorpion watch (open-vocab demo)",
+  "description": "YOLO-World prompted with 'scorpion / dog / drone'. Demonstrates open-vocab detection: zero training data, any class by text.",
+  "use_case": "Quick way to experiment with YOLO-World. Replace classes with whatever you actually want to detect.",
+  "tags": ["demo", "yolo_world"],
+  "complexity": "medium",
+  "placeholders": []
+}

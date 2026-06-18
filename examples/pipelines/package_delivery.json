@@ -1,0 +1,32 @@
+{
+  "id": "package_delivery",
+  "name": "Package delivery (porch zone)",
+  "nodes": [
+    { "id": "src", "type": "source.camera", "config": { "camera_id": "REPLACE_ME" } },
+    { "id": "yolo", "type": "detector.yolo",
+      "config": { "classes": ["person", "backpack", "handbag", "suitcase"],
+                   "conf": 0.35,
+                   "device": "${profile.default_device}" } },
+    { "id": "trk", "type": "transform.tracker", "config": { "frame_rate": 10 } },
+    { "id": "zone", "type": "condition.zone",
+      "config": {
+        "polygon": [[100, 200], [600, 200], [600, 600], [100, 600]],
+        "fire_on": "dwell", "dwell_s": 3,
+        "classes": ["person"]
+      } },
+    { "id": "cool", "type": "condition.cooldown",
+      "config": { "cooldown_s": 180, "scope": "per_camera" } },
+    { "id": "tg", "type": "sink.telegram",
+      "config": { "template": "📦 Possible delivery on `{camera_id}`" } },
+    { "id": "rec", "type": "sink.recorder",
+      "config": { "pre_roll_s": 8, "post_roll_s": 30 } }
+  ],
+  "edges": [
+    { "from": "src.frame", "to": "yolo.frame" },
+    { "from": "yolo.detections", "to": "trk.payload" },
+    { "from": "trk.payload", "to": "zone.payload" },
+    { "from": "zone.match", "to": "cool.payload" },
+    { "from": "cool.match", "to": "tg.payload" },
+    { "from": "cool.match", "to": "rec.trigger" }
+  ]
+}

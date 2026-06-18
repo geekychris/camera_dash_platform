@@ -1,0 +1,9 @@
+{
+  "name": "Package delivery (porch zone)",
+  "description": "Telegram + record when a person dwells in a porch polygon for 3+ seconds (delivery drivers linger; people walking past don't).",
+  "use_case": "Front porch camera. Adjust the polygon coords via the dashboard's polygon editor (▱) on the camera tile.",
+  "tags": ["home", "delivery", "zones", "telegram"],
+  "complexity": "medium",
+  "requires_env": ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"],
+  "placeholders": ["REPLACE_ME"]
+}

@@ -1,6 +1,10 @@
 # camera_dash — User Manual
 
-A practical guide to using the platform. Assumes you've installed it (see [`INSTALLATION.md`](INSTALLATION.md)) and have the three services running:
+A practical guide to using the platform.
+
+![Dashboard with 4 tiles: raw laptop camera, raw FLIR thermal, and 2 derived streams with annotated detections](screenshots/01-dashboard.png)
+
+Assumes you've installed it (see [`INSTALLATION.md`](INSTALLATION.md)) and have the three services running:
 - **MediaMTX** on ports 8554/8888/8889/9997
 - **Backend** on http://localhost:8001
 - **Frontend** on http://localhost:5173
@@ -24,6 +28,8 @@ The top nav has five tabs:
 ---
 
 ## Cameras tab
+
+![Cameras tab with two configured cameras (USB laptop + FLIR Lepton)](screenshots/05-cameras.png)
 
 Five camera kinds are supported:
 
@@ -118,6 +124,8 @@ If a camera has `is_thermal: true`, mouseover anywhere on the tile shows the tem
 
 ## Pipelines (visual editor)
 
+![Pipeline editor sidebar with + New / ✨ Draft with AI / 📋 From template buttons](screenshots/03-editor-blank.png)
+
 Pipelines are JSON DAGs of typed nodes. Build them in the visual editor.
 
 ### Sidebar
@@ -155,6 +163,8 @@ See [`NODES.md`](NODES.md) for the full node reference and [`API.md`](API.md) fo
 
 ## Clips browser
 
+![Clips browser grid view](screenshots/06-clips.png)
+
 The `/clips` page is your NVR-style review surface.
 
 - **Grid mode** (default) — thumbnails for each clip; snapshots show inline as JPEG, video clips show their thumbnail
@@ -173,6 +183,8 @@ The clips directory is resolved relative to the **config file's parent directory
 ---
 
 ## Events tab
+
+![Events tab with live SSE pane + historical pane](screenshots/07-events.png)
 
 A developer-leaning view:
 - **Live** pane: SSE-tailed events with no filters

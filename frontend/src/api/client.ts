@@ -73,6 +73,17 @@ export const api = {
   // templates + draft (AI composer)
   listTemplates: () => fetch(`${API}/templates`).then(
     jsonOrThrow<{ id: string; name: string; description?: string; definition: GraphJson }[]>),
+  listExamples: () => fetch(`${API}/examples`).then(
+    jsonOrThrow<{
+      id: string; name: string; description: string; use_case: string;
+      tags: string[]; complexity: string; requires_env: string[];
+      placeholders: string[]; definition: GraphJson;
+    }[]>),
+  installExample: (exampleId: string, opts: { camera_map?: Record<string, string>; target_id?: string; enabled?: boolean } = {}) =>
+    fetch(`${API}/examples/${exampleId}/install`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ camera_map: {}, enabled: false, ...opts }),
+    }).then(jsonOrThrow<{ id: string; installed: boolean; started: boolean }>),
   draftPipeline: (prompt: string, opts: { pipeline_id?: string; cameras_hint?: string[] } = {}) =>
     fetch(`${API}/draft`, {
       method: "POST", headers: { "content-type": "application/json" },

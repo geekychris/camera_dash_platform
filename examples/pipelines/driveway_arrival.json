@@ -1,0 +1,27 @@
+{
+  "id": "driveway_arrival",
+  "name": "Driveway arrival",
+  "nodes": [
+    { "id": "src", "type": "source.camera", "config": { "camera_id": "REPLACE_ME" } },
+    { "id": "yolo", "type": "detector.yolo",
+      "config": { "classes": ["car", "truck", "motorcycle"], "conf": 0.45,
+                   "device": "${profile.default_device}" } },
+    { "id": "trk", "type": "transform.tracker", "config": { "frame_rate": 10 } },
+    { "id": "match", "type": "condition.metadata_match",
+      "config": { "expression": "d.score > 0.5" } },
+    { "id": "cool", "type": "condition.cooldown",
+      "config": { "cooldown_s": 120, "scope": "per_camera_kind" } },
+    { "id": "rec", "type": "sink.recorder",
+      "config": { "pre_roll_s": 5, "post_roll_s": 25 } },
+    { "id": "ntfy", "type": "sink.ntfy",
+      "config": { "topic": "camera_dash_driveway", "priority": 3, "tags": ["red_car"] } }
+  ],
+  "edges": [
+    { "from": "src.frame", "to": "yolo.frame" },
+    { "from": "yolo.detections", "to": "trk.payload" },
+    { "from": "trk.payload", "to": "match.detections" },
+    { "from": "match.match", "to": "cool.payload" },
+    { "from": "cool.match", "to": "rec.trigger" },
+    { "from": "cool.match", "to": "ntfy.payload" }
+  ]
+}
