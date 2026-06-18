@@ -120,10 +120,8 @@ def install_pipeline(source: str | None, install_all: bool, mappings: tuple[str,
             _install_example(c, source, mapping, enable)
 
 
-def _install_example(client: Any, example_id: str, mapping: dict[str, str],
+def _install_example(client: object, example_id: str, mapping: dict[str, str],
                      enable: bool) -> None:
-    import click  # local for import cycle safety
-
     body = {"camera_map": mapping, "enabled": enable}
     r = client.post(f"/api/examples/{example_id}/install", json=body)
     if r.status_code >= 400:
