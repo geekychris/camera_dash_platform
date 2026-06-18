@@ -14,7 +14,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": "http://localhost:8001",
+      // `ws: true` is required for the radiometric WebSocket
+      // (/api/radiometric/{camera_id}) to upgrade through the dev proxy.
+      // Without it, the WS handshake silently 404s and the FLIR overlay
+      // never gets a thermal frame.
+      "/api": { target: "http://localhost:8001", ws: true, changeOrigin: true },
     },
   },
 });
