@@ -1,0 +1,33 @@
+{
+  "id": "multi_camera_branch",
+  "name": "Two cameras, dog OR scorpion routing",
+  "nodes": [
+    { "id": "cam_a", "type": "source.camera", "config": { "camera_id": "cam-a" }, "position": { "x": 0, "y": 0 } },
+    { "id": "cam_b", "type": "source.camera", "config": { "camera_id": "cam-b" }, "position": { "x": 0, "y": 240 } },
+    { "id": "yolo_a", "type": "detector.yolo",
+      "config": { "model": "yolov8n.pt", "device": "${profile.default_device}", "conf": 0.3 },
+      "position": { "x": 240, "y": 0 } },
+    { "id": "yolo_b", "type": "detector.yolo",
+      "config": { "model": "yolov8n.pt", "device": "${profile.default_device}", "conf": 0.3 },
+      "position": { "x": 240, "y": 240 } },
+    { "id": "dog_match", "type": "condition.metadata_match",
+      "config": { "expression": "d.label == 'dog'" }, "position": { "x": 520, "y": 0 } },
+    { "id": "person_match", "type": "condition.metadata_match",
+      "config": { "expression": "d.label == 'person' and d.score > 0.6" },
+      "position": { "x": 520, "y": 240 } },
+    { "id": "mqtt_dog", "type": "sink.mqtt",
+      "config": { "broker": "tcp://localhost:1883", "topic": "alerts/dog" },
+      "position": { "x": 800, "y": 0 } },
+    { "id": "webhook_person", "type": "sink.webhook",
+      "config": { "url": "http://localhost:9100/intruder" },
+      "position": { "x": 800, "y": 240 } }
+  ],
+  "edges": [
+    { "from": "cam_a.frame", "to": "yolo_a.frame" },
+    { "from": "cam_b.frame", "to": "yolo_b.frame" },
+    { "from": "yolo_a.detections", "to": "dog_match.detections" },
+    { "from": "yolo_b.detections", "to": "person_match.detections" },
+    { "from": "dog_match.match", "to": "mqtt_dog.payload" },
+    { "from": "person_match.match", "to": "webhook_person.payload" }
+  ]
+}

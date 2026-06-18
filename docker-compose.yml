@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: camera_dash/backend:dev
+    environment:
+      CAMERA_DASH_CONFIG: /app/configs/deploy.mac.yml
+    volumes:
+      - ./configs:/app/configs:ro
+      - ./data:/app/data
+      # mount /dev/video* for UVC on Linux hosts; harmless on macOS
+      - /dev:/dev
+    devices:
+      - /dev:/dev
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mediamtx
+    networks: [cd]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: camera_dash/frontend:dev
+    ports:
+      - "5173:80"
+    networks: [cd]
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    ports:
+      - "8554:8554"   # RTSP
+      - "8889:8889"   # WebRTC
+      - "8888:8888"   # HLS
+      - "9997:9997"   # API
+    volumes:
+      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    networks: [cd]
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mediamtx/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    networks: [cd]
+    profiles: [with-mqtt]
+
+networks:
+  cd: {}

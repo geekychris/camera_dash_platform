@@ -1,0 +1,163 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "camera_dash"
+version = "0.1.0"
+description = "Multi-camera dashboard + pluggable computer-vision pipeline platform"
+readme = "../README.md"
+requires-python = ">=3.11"
+license = { text = "TBD" }
+authors = [{ name = "chris" }]
+
+dependencies = [
+  # Web
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "sse-starlette>=2.1",
+  "websockets>=13",
+  "httpx>=0.27",
+
+  # Storage
+  "sqlalchemy[asyncio]>=2.0",
+  "aiosqlite>=0.20",
+  "alembic>=1.14",
+
+  # Pub-sub
+  "paho-mqtt>=2.1",
+  "aiokafka>=0.12",
+
+  # CV core
+  "numpy>=1.26",
+  "opencv-python-headless>=4.10",
+  "Pillow>=10.4",
+  "pyyaml>=6.0",
+
+  # CLI
+  "click>=8.1",
+  "rich>=13.9",
+]
+
+[project.optional-dependencies]
+# Inference always-on; backend chosen by config
+inference = [
+  "ultralytics>=8.3",
+  "onnxruntime>=1.20",
+  "mediapipe>=0.10",
+]
+
+# Thermal (Lepton). flirpy pulls in pyusb/libusb at runtime
+thermal = [
+  "flirpy>=0.4",
+]
+
+mac = [
+  "camera_dash[inference,thermal]",
+  "torch>=2.5",                         # MPS via default wheel on Apple Silicon
+  "torchvision>=0.20",
+  "supervision>=0.24",                   # ByteTrack for transform.tracker
+  "anthropic>=0.40",                     # for detector.vision_llm
+  "depthai>=2.28",                       # for source.oak (Luxonis); ARM64 wheels avail
+]
+
+rpi = [
+  "camera_dash[thermal]",
+  # Inference on Pi uses tflite-runtime + onnxruntime CPU
+  "onnxruntime>=1.20",
+  "tflite-runtime>=2.14; platform_machine=='aarch64'",
+  # picamera2 only available on Pi via apt; install separately
+]
+
+gpu = [
+  "camera_dash[inference,thermal]",
+  "torch>=2.5",
+  "torchvision>=0.20",
+  "onnxruntime-gpu>=1.20",
+]
+
+mcp = [
+  "mcp>=1.2",
+]
+
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "ruff>=0.7",
+  "mypy>=1.13",
+  "types-pyyaml",
+  "types-paho-mqtt",
+]
+
+[project.scripts]
+camera_dash = "camera_dash.cli:main"
+
+[project.entry-points."camera_dash.nodes"]
+# Built-in nodes register here at install time
+"source.camera"        = "camera_dash.pipeline.nodes.sources:CameraSourceNode"
+"source.file"          = "camera_dash.pipeline.nodes.sources:FileSourceNode"
+"detector.yolo"        = "camera_dash.pipeline.nodes.detectors.yolo:YoloDetectorNode"
+"detector.yolo_world"  = "camera_dash.pipeline.nodes.detectors.yolo_world:YoloWorldDetectorNode"
+"detector.onnx"        = "camera_dash.pipeline.nodes.detectors.onnx:OnnxDetectorNode"
+"detector.opencv_dnn"  = "camera_dash.pipeline.nodes.detectors.opencv_dnn:OpenCvDnnNode"
+"detector.mediapipe"   = "camera_dash.pipeline.nodes.detectors.mediapipe_face:MediapipeFaceNode"
+"detector.mog2"        = "camera_dash.pipeline.nodes.detectors.mog2:Mog2Node"
+"detector.optical_flow"= "camera_dash.pipeline.nodes.detectors.optical_flow:OpticalFlowNode"
+"detector.vision_llm"  = "camera_dash.pipeline.nodes.detectors.vision_llm:VisionLlmNode"
+"detector.pose"        = "camera_dash.pipeline.nodes.detectors.pose:PoseDetectorNode"
+"detector.segmentation"= "camera_dash.pipeline.nodes.detectors.segmentation:SegmentationNode"
+"detector.ocr"         = "camera_dash.pipeline.nodes.detectors.ocr:OcrNode"
+"detector.anomaly"     = "camera_dash.pipeline.nodes.detectors.anomaly:AnomalyNode"
+"transform.resize"     = "camera_dash.pipeline.nodes.transforms.resize:ResizeNode"
+"transform.crop"       = "camera_dash.pipeline.nodes.transforms.crop:CropNode"
+"transform.colormap"   = "camera_dash.pipeline.nodes.transforms.colormap:ColormapNode"
+"transform.annotate"   = "camera_dash.pipeline.nodes.transforms.annotate:AnnotateNode"
+"transform.throttle"   = "camera_dash.pipeline.nodes.transforms.throttle:ThrottleNode"
+"transform.tracker"    = "camera_dash.pipeline.nodes.transforms.tracker:TrackerNode"
+"transform.privacy_mask" = "camera_dash.pipeline.nodes.transforms.privacy_mask:PrivacyMaskNode"
+"condition.metadata_match"   = "camera_dash.pipeline.nodes.conditions.metadata_match:MetadataMatchNode"
+"condition.temperature_gate" = "camera_dash.pipeline.nodes.conditions.temperature_gate:TemperatureGateNode"
+"condition.zone"             = "camera_dash.pipeline.nodes.conditions.zone:ZoneNode"
+"condition.counter"          = "camera_dash.pipeline.nodes.conditions.counter:CounterNode"
+"condition.line_crossing"    = "camera_dash.pipeline.nodes.conditions.line_crossing:LineCrossingNode"
+"condition.schedule"         = "camera_dash.pipeline.nodes.conditions.schedule:ScheduleNode"
+"condition.cooldown"         = "camera_dash.pipeline.nodes.conditions.cooldown:CooldownNode"
+
+[project.entry-points."camera_dash.sinks"]
+"sink.mqtt"     = "camera_dash.pipeline.nodes.sinks.mqtt:MqttSink"
+"sink.kafka"    = "camera_dash.pipeline.nodes.sinks.kafka:KafkaSink"
+"sink.webhook"  = "camera_dash.pipeline.nodes.sinks.webhook:WebhookSink"
+"sink.recorder" = "camera_dash.pipeline.nodes.sinks.recorder:RecorderSink"
+"sink.sqlite"   = "camera_dash.pipeline.nodes.sinks.sqlite_event:SqliteEventSink"
+"sink.console"  = "camera_dash.pipeline.nodes.sinks.console:ConsoleSink"
+"sink.stream"   = "camera_dash.pipeline.nodes.sinks.stream:StreamSink"
+"sink.telegram" = "camera_dash.pipeline.nodes.sinks.telegram:TelegramSink"
+"sink.ntfy"     = "camera_dash.pipeline.nodes.sinks.ntfy:NtfySink"
+"sink.pushover" = "camera_dash.pipeline.nodes.sinks.pushover:PushoverSink"
+"sink.email"    = "camera_dash.pipeline.nodes.sinks.email:EmailSink"
+
+[tool.hatch.build.targets.wheel]
+packages = ["camera_dash"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+ignore = [
+  "E501",   # line length
+  "RUF012", # CONFIG_SCHEMA is a class-level constant; ClassVar wrapping would clutter every node
+]
+
+[tool.mypy]
+python_version = "3.11"
+strict_optional = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

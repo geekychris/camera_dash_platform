@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Node
+node_modules/
+.vite/
+*.local
+
+# Data
+data/*.db
+data/*.db-*
+data/clips/
+data/models/
+models/
+*.pt
+*.onnx
+*.tflite
+*.engine
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Runtime
+*.log
+mediamtx/recordings/
+
+# Claude Code local state
+.claude/
+
+# Auto-generated TLS certs (regenerated on demand)
+auto.crt
+auto.key
+*.pem
+
+# Local secrets
+.env
+.env.*

@@ -1,0 +1,23 @@
+# Raspberry Pi profile (low-power, optional Coral/Hailo)
+profile:
+  name: rpi
+  default_device: cpu  # set to "coral" or "hailo" if accelerator present
+  default_detector_model: yolov8n.onnx
+  target_fps: 10
+  max_inflight_frames: 1  # tight backpressure on Pi
+
+storage:
+  dsn: sqlite+aiosqlite:///./data/camera_dash.db
+  clips_dir: ./data/clips
+
+streaming:
+  mediamtx_host: 127.0.0.1
+  mediamtx_rtsp_port: 8554
+  mediamtx_webrtc_port: 8889
+  mediamtx_api_port: 9997
+
+server:
+  host: 0.0.0.0
+  port: 8000
+  cors_origins:
+    - http://localhost:5173

@@ -1,0 +1,23 @@
+{
+  "id": "person_detection_mqtt",
+  "name": "Person detection -> MQTT",
+  "nodes": [
+    { "id": "src1", "type": "source.camera", "config": { "camera_id": "cam-front" }, "position": { "x": 0, "y": 0 } },
+    { "id": "det1", "type": "detector.yolo",
+      "config": { "model": "yolov8n.pt", "device": "${profile.default_device}", "classes": ["person"], "conf": 0.4 },
+      "position": { "x": 280, "y": 0 } },
+    { "id": "match1", "type": "condition.metadata_match",
+      "config": { "expression": "d.label == 'person' and d.score > 0.5" },
+      "position": { "x": 560, "y": 0 } },
+    { "id": "mqtt1", "type": "sink.mqtt",
+      "config": { "broker": "tcp://localhost:1883", "topic": "cameras/person", "qos": 0 },
+      "position": { "x": 840, "y": 0 } },
+    { "id": "sql1", "type": "sink.sqlite", "config": {}, "position": { "x": 840, "y": 120 } }
+  ],
+  "edges": [
+    { "from": "src1.frame", "to": "det1.frame" },
+    { "from": "det1.detections", "to": "match1.detections" },
+    { "from": "match1.match", "to": "mqtt1.payload" },
+    { "from": "match1.match", "to": "sql1.payload" }
+  ]
+}

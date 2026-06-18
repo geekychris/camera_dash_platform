@@ -1,0 +1,21 @@
+{
+  "id": "thermal_alert",
+  "name": "Thermal hotspot -> MQTT + 30s clip",
+  "nodes": [
+    { "id": "src1", "type": "source.camera", "config": { "camera_id": "flir-0" }, "position": { "x": 0, "y": 0 } },
+    { "id": "gate", "type": "condition.temperature_gate",
+      "config": { "min_celsius": 60.0, "max_celsius": 250.0, "region": "whole" },
+      "position": { "x": 280, "y": 0 } },
+    { "id": "mqtt1", "type": "sink.mqtt",
+      "config": { "broker": "tcp://localhost:1883", "topic": "alerts/thermal" },
+      "position": { "x": 560, "y": -80 } },
+    { "id": "rec1", "type": "sink.recorder",
+      "config": { "pre_roll_s": 0, "post_roll_s": 30, "cooldown_s": 60 },
+      "position": { "x": 560, "y": 80 } }
+  ],
+  "edges": [
+    { "from": "src1.frame", "to": "gate.frame" },
+    { "from": "gate.match", "to": "mqtt1.payload" },
+    { "from": "gate.match", "to": "rec1.trigger" }
+  ]
+}

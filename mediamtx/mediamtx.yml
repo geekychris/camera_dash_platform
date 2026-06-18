@@ -1,0 +1,26 @@
+# MediaMTX configuration — RTSP ingest from backend, WebRTC egress to browser.
+logLevel: info
+logDestinations: [stdout]
+
+api: yes
+apiAddress: :9997
+
+rtsp: yes
+rtspAddress: :8554
+rtspTransports: [tcp, udp]
+
+webrtc: yes
+webrtcAddress: :8889
+# Local-network defaults; lock down behind a reverse proxy in production.
+webrtcAdditionalHosts: []
+
+hls: yes
+hlsAddress: :8888
+hlsAlwaysRemux: yes
+hlsVariant: lowLatency
+
+# Any path is allowed by default. Backend publishes paths like /camera/<id>.
+paths:
+  all_others:
+    source: publisher
+    sourceOnDemand: no

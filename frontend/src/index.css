@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+/* react-rnd resize handles: make the SE corner visible on the dark theme.
+   Other edge handles are invisible-but-grabable areas (8px wide). */
+.react-resizable-handle-se,
+.react-resizable-handle-sw,
+.react-resizable-handle-ne,
+.react-resizable-handle-nw { width: 18px !important; height: 18px !important; }
+.react-resizable-handle-se {
+  background: linear-gradient(135deg,
+    transparent 50%,
+    rgba(148, 163, 184, 0.7) 50% 65%,
+    transparent 65% 75%,
+    rgba(148, 163, 184, 0.7) 75% 90%,
+    transparent 90%);
+  border-bottom-right-radius: 6px;
+}
