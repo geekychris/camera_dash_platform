@@ -84,13 +84,17 @@ export default function FlirOverlay({
   }
 
   function onMove(e: React.MouseEvent<HTMLDivElement>) {
-    const m = matrixRef.current;
-    if (!m) return;
+    // Always set hover so the crosshair is visible even when the radiometric WS
+    // hasn't delivered a frame yet. Temperature defaults to NaN until we have data.
     const { px, py, cx, cy } = eventToFrac(e);
-    const mx = Math.min(m.w - 1, Math.max(0, Math.floor(px * m.w)));
-    const my = Math.min(m.h - 1, Math.max(0, Math.floor(py * m.h)));
-    const raw = m.data[my * m.w + mx];
-    setHover({ x: cx, y: cy, celsius: ck2c(raw), raw });
+    const m = matrixRef.current;
+    let raw = NaN;
+    if (m) {
+      const mx = Math.min(m.w - 1, Math.max(0, Math.floor(px * m.w)));
+      const my = Math.min(m.h - 1, Math.max(0, Math.floor(py * m.h)));
+      raw = m.data[my * m.w + mx];
+    }
+    setHover({ x: cx, y: cy, celsius: isFinite(raw) ? ck2c(raw) : NaN, raw });
   }
 
   function onClick(e: React.MouseEvent<HTMLDivElement>) {
@@ -161,19 +165,43 @@ export default function FlirOverlay({
       {/* Hover crosshair + tooltip */}
       {hover && (
         <>
+          {/* Horizontal line — bright cyan, full width, mix-blend for visibility on any background */}
           <div
-            className="pointer-events-none absolute h-px bg-cyan-300/60"
-            style={{ left: 0, right: 0, top: hover.y }}
+            className="pointer-events-none absolute"
+            style={{
+              left: 0, right: 0, top: hover.y - 1, height: 2,
+              background: "#22d3ee",
+              boxShadow: "0 0 0 1px rgba(0,0,0,0.6)",
+              mixBlendMode: "difference",
+            }}
           />
+          {/* Vertical line */}
           <div
-            className="pointer-events-none absolute w-px bg-cyan-300/60"
-            style={{ top: 0, bottom: 0, left: hover.x }}
+            className="pointer-events-none absolute"
+            style={{
+              top: 0, bottom: 0, left: hover.x - 1, width: 2,
+              background: "#22d3ee",
+              boxShadow: "0 0 0 1px rgba(0,0,0,0.6)",
+              mixBlendMode: "difference",
+            }}
           />
+          {/* Dot at exact cursor position */}
           <div
-            className="pointer-events-none absolute rounded bg-black/80 px-2 py-1 font-mono text-xs text-white shadow"
-            style={{ left: hover.x + 12, top: hover.y + 12 }}
+            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{
+              left: hover.x, top: hover.y, width: 10, height: 10,
+              background: "#22d3ee",
+              boxShadow: "0 0 0 2px rgba(0,0,0,0.6), 0 0 0 4px rgba(34,211,238,0.4)",
+            }}
+          />
+          {/* Tooltip — bottom-right corner of tile if cursor near right edge, else next to cursor */}
+          <div
+            className="pointer-events-none absolute rounded bg-black/85 px-2 py-1 font-mono text-xs text-white shadow ring-1 ring-cyan-300/40"
+            style={{ left: hover.x + 16, top: hover.y + 16 }}
           >
-            {isCalibrated
+            {!isFinite(hover.raw)
+              ? "waiting for thermal frame…"
+              : isCalibrated
               ? `${hover.celsius.toFixed(1)}°C`
               : `raw ${hover.raw}`}
           </div>
