@@ -185,36 +185,47 @@ A developer-leaning view:
 
 ### "Tell me when there's a person, but not 100 times per minute"
 
-```
-source.camera(my_cam)
-  → detector.yolo(classes: ["person"])
-  → transform.tracker
-  → condition.metadata_match(expression: "d.label == 'person'")
-  → condition.cooldown(cooldown_s: 60, scope: per_camera)
-  → sink.recorder(pre_roll_s: 5, post_roll_s: 30)
-  → sink.ntfy(topic: "my_alerts")
+```mermaid
+flowchart LR
+    src["source.camera<br/>(my_cam)"]
+    yolo["detector.yolo<br/>classes: [person]"]
+    trk["transform.tracker"]
+    match["condition.metadata_match<br/>d.label == 'person'"]
+    cool["condition.cooldown<br/>60s · per_camera"]
+    rec["sink.recorder<br/>pre 5s · post 30s"]
+    ntfy["sink.ntfy<br/>topic: my_alerts"]
+    src --> yolo --> trk --> match -- match --> cool -- match --> rec
+    cool -- match --> ntfy
 ```
 
 ### "Anything dwelling in this area at night"
 
-```
-source.camera(my_cam)
-  → detector.yolo(classes: ["person"])
-  → transform.tracker
-  → condition.zone(polygon: [[…]], fire_on: dwell, dwell_s: 10)
-  → condition.schedule(windows: [{start: "21:00", end: "06:00"}])
-  → sink.telegram(template: "🚨 dwell in zone on {camera_id}")
+```mermaid
+flowchart LR
+    src["source.camera<br/>(my_cam)"]
+    yolo["detector.yolo<br/>classes: [person]"]
+    trk["transform.tracker"]
+    zone["condition.zone<br/>fire_on: dwell · 10s"]
+    sched["condition.schedule<br/>21:00 → 06:00"]
+    tg["sink.telegram"]
+    src --> yolo --> trk --> zone -- match --> sched -- match --> tg
 ```
 
 ### "Describe what's happening in plain English when the thermal sensor alarms"
 
-```
-source.camera(flir) → condition.temperature_gate(min_celsius: 60)
-                                ↓ match
-source.camera(rgb)  → detector.vision_llm(prompt: "Describe what is hot here")
-                                ↓ event
-                              sink.console
-                              sink.recorder (separate edge from temperature_gate.match)
+```mermaid
+flowchart LR
+    flir["source.camera<br/>(flir)"]
+    rgb["source.camera<br/>(rgb)"]
+    gate["condition.temperature_gate<br/>min 60°C"]
+    vlm["detector.vision_llm<br/>prompt: 'Describe what is hot'"]
+    log["sink.console"]
+    rec["sink.recorder"]
+    flir -- frame --> gate
+    gate -- match --> vlm
+    rgb -- frame --> vlm
+    vlm -- event --> log
+    gate -- match --> rec
 ```
 
 ---

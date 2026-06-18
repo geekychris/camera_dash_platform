@@ -4,28 +4,23 @@ A self-hosted, pluggable computer-vision platform for multiple concurrent camera
 
 Drives USB UVC, FLIR thermal, IP/RTSP, screen capture, and Luxonis OAK cameras. Arranges live feeds in a browser dashboard with draggable tiles, runs configurable detection pipelines authored in a visual editor (or composed by Claude from a natural-language prompt), and emits classification events over MQTT, Kafka, ntfy, Telegram, email, webhooks, and more.
 
-```
-┌────────────────────────────────────────────────────────┐
-│ Browser dashboard                                       │
-│  ┌────────────┐ ┌────────────┐ ┌────────────────────┐ │
-│  │ cam: laptop│ │  derived   │ │ ▼  log/alert/      │ │
-│  │            │ │  ┌──┐ box  │ │    timeline/stats  │ │
-│  │  WebRTC    │ │  │  │ over │ │                    │ │
-│  │  video     │ │  └──┘ thermal│ │   live events    │ │
-│  └────────────┘ └────────────┘ └────────────────────┘ │
-└────────────────────────────────────────────────────────┘
-                          │
-              REST + SSE  │  WebRTC
-                          ▼
-┌────────────────────────────────────────────────────────┐
-│  camera_dash backend                                    │
-│   • 39 built-in nodes (5 sources, 12 detectors,         │
-│     7 transforms, 7 conditions, 11 sinks)               │
-│   • Plugin system: pip install adds nodes               │
-│   • Pre-roll ring buffer + clip browser                 │
-│   • MCP server for Claude integration                   │
-│   • AI pipeline composer (Claude writes pipelines)      │
-└────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Browser["🖥️  Browser dashboard"]
+        direction LR
+        Cam["📷 Camera tile<br/>(WebRTC)"]
+        Der["🎯 Derived stream<br/>(boxes/thermal overlay)"]
+        Tools["📋 Log / 🚨 Alert<br/>📊 Stats / 🕓 Timeline"]
+    end
+    subgraph Backend["⚙️  camera_dash backend"]
+        direction TB
+        Nodes["39 built-in nodes<br/>5 sources · 12 detectors<br/>7 transforms · 7 conditions · 11 sinks"]
+        Plugin["Plugin system<br/>(pip install adds nodes)"]
+        Ring["Pre-roll ring buffer<br/>+ clip browser"]
+        MCP["MCP server for Claude"]
+        AI["AI pipeline composer<br/>(Claude writes pipelines)"]
+    end
+    Browser -- "REST + SSE + WebRTC" --> Backend
 ```
 
 ## Quick start

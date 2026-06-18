@@ -4,63 +4,90 @@ A complete description of how the system is put together: process boundaries, da
 
 ## 1. High-level
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                                BROWSER                                        │
-│                                                                               │
-│   Dashboard       Pipeline Editor      Clips       Events                     │
-│       │                  │               │           │                        │
-│       │  (WebRTC video)  │ (REST)        │ (REST)    │ (SSE)                  │
-│       ▼                  ▼               ▼           ▼                        │
-│  ┌──────────┐          ┌────────────────────────────────────┐                 │
-│  │ MediaMTX │ ◀──RTSP──┤         camera_dash backend         │                 │
-│  │  WHEP    │          │            (FastAPI + asyncio)      │                 │
-│  └──────────┘          │                                    │                 │
-│        ▲               │  ┌────────────────────────────────┐│                 │
-│        │ encoded H264  │  │ Pipeline Engine                ││                 │
-│        │ (per camera)  │  │   one asyncio task per node    ││                 │
-│        │               │  │   typed-port queues per edge   ││                 │
-│  ┌─────┴────────┐      │  └────────────────────────────────┘│                 │
-│  │ Capture      │      │  ┌────────────────────────────────┐│                 │
-│  │   UVC / FLIR │──┐   │  │ Plugin loader                  ││                 │
-│  │   RTSP / OAK │  │   │  │   entry_points → catalog       ││                 │
-│  │   Screen     │  │   │  └────────────────────────────────┘│                 │
-│  └──────────────┘  │   │  ┌────────────────────────────────┐│                 │
-│                    └──▶│  │ FrameBus + EventBus            ││                 │
-│                        │  │   per-camera fan-out, drop-old ││                 │
-│                        │  │   per-process event broadcast  ││                 │
-│                        │  └────────────────────────────────┘│                 │
-│                        │  ┌────────────────────────────────┐│                 │
-│                        │  │ Storage (SQLAlchemy 2 / SQLite)││                 │
-│                        │  │   cameras, pipelines, events,  ││                 │
-│                        │  │   clips                        ││                 │
-│                        │  └────────────────────────────────┘│                 │
-│                        │  ┌────────────────────────────────┐│                 │
-│                        │  │ Ring buffer manager (ffmpeg)   ││                 │
-│                        │  │   always-on segmented mp4      ││                 │
-│                        │  │   per camera, for pre-roll     ││                 │
-│                        │  └────────────────────────────────┘│                 │
-│                        └────────────────────────────────────┘                 │
-└──────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Browser["🖥️  Browser"]
+        Dash["Dashboard"]
+        Editor["Pipeline Editor"]
+        Clips["Clips"]
+        Events["Events"]
+    end
+
+    subgraph MTX["📡  MediaMTX (streaming relay)"]
+        WHEP["WebRTC / WHEP<br/>HLS · RTSP"]
+    end
+
+    subgraph Backend["⚙️  camera_dash backend (FastAPI + asyncio)"]
+        direction TB
+        Engine["Pipeline Engine<br/>• one asyncio task per node<br/>• typed-port queues per edge"]
+        Plugin["Plugin loader<br/>entry_points → catalog"]
+        Bus["FrameBus + EventBus<br/>per-camera fan-out (drop-oldest)<br/>per-process event broadcast"]
+        Storage["Storage (SQLAlchemy 2 / SQLite)<br/>cameras · pipelines · events · clips"]
+        Ring["Ring buffer manager (ffmpeg)<br/>always-on segmented mp4<br/>per camera, for pre-roll"]
+    end
+
+    subgraph Capture["🎥  Capture drivers"]
+        Drivers["UVC · FLIR · RTSP · OAK · Screen"]
+    end
+
+    Dash -- WebRTC video --> WHEP
+    Editor -- REST --> Backend
+    Clips -- REST --> Backend
+    Events -- SSE --> Backend
+
+    WHEP -- RTSP --> Backend
+    Backend -- "encoded H264<br/>(per camera)" --> WHEP
+
+    Drivers -- frames --> Bus
+    Bus --> Engine
+    Engine -. via context .-> Plugin
+    Engine -. persist .-> Storage
+    Engine -. trigger .-> Ring
+    Ring -- pull RTSP --> WHEP
 ```
 
 Three OS processes: **MediaMTX**, the Python **backend** (uvicorn), and the Vite **frontend** dev server (in production this becomes a static bundle served by nginx).
 
 ## 2. Data types
 
-```
-Frame                Detection                  Event
-─────                ─────────                  ─────
-camera_id            label                      pipeline_id
-timestamp_ns         score                      node_id
-width, height        bbox(x,y,w,h)              camera_id
-pixel_format         class_id?                  timestamp_ns
-data: ndarray        track_id?  ← set by tracker kind  (string)
-radiometric?         attrs (mask/landmarks/…)   payload (dict)
-metadata
+```mermaid
+classDiagram
+    class Frame {
+        +str camera_id
+        +int timestamp_ns
+        +int width
+        +int height
+        +PixelFormat pixel_format
+        +ndarray data
+        +ndarray? radiometric
+        +dict metadata
+    }
+    class Detection {
+        +str label
+        +float score
+        +tuple bbox
+        +int? class_id
+        +int? track_id «set by transform.tracker»
+        +dict attrs «mask, landmarks, ...»
+    }
+    class DetectionSet {
+        +str camera_id
+        +int timestamp_ns
+        +list~Detection~ detections
+        +str source_node
+    }
+    class Event {
+        +str pipeline_id
+        +str node_id
+        +str? camera_id
+        +int timestamp_ns
+        +str kind
+        +dict payload
+    }
+    DetectionSet *-- "many" Detection : contains
 ```
 
-`Frame` for video, `DetectionSet` (collection of `Detection`) for per-frame model outputs, `Event` for "something happened" payloads going to sinks.
+`Frame` for video, `DetectionSet` for per-frame model outputs, `Event` for "something happened" payloads going to sinks.
 
 ## 3. Pipeline engine
 
@@ -149,9 +176,17 @@ The FrameBus is a per-camera-id fan-out of asyncio.Queue subscribers with **drop
 
 For each running camera, the `StreamingManager` attaches a `StreamPublisher`:
 
-```
-FrameBus subscribe → GStreamer appsrc → videoconvert → x264enc (zerolatency) →
-  rtspclientsink → MediaMTX → WebRTC (WHEP) → browser <video>
+```mermaid
+flowchart LR
+    FB["FrameBus<br/>subscribe"]
+    AS["GStreamer<br/>appsrc"]
+    VC["videoconvert"]
+    X264["x264enc<br/>(zerolatency)"]
+    RTSP["rtspclientsink"]
+    MTX["MediaMTX"]
+    WHEP["WebRTC<br/>(WHEP)"]
+    VID["browser<br/>&lt;video&gt;"]
+    FB --> AS --> VC --> X264 --> RTSP --> MTX --> WHEP --> VID
 ```
 
 MediaMTX handles the WebRTC handshake; the browser hits `http://mediamtx:8889/camera/<id>/whep` with an SDP offer and gets back an answer.
