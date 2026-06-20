@@ -4,6 +4,7 @@ import { api, CameraInfo, DerivedStream, SnapshotInfo, Tile } from "../api/clien
 import CameraTile from "./CameraTile";
 import LogTile, { LogConfig } from "./LogTile";
 import AlertTile, { AlertConfig } from "./AlertTile";
+import PointCloudTile from "./PointCloudTile";
 import SnapshotTile from "./SnapshotTile";
 import StatsTile from "./StatsTile";
 import TimelineTile from "./TimelineTile";
@@ -61,8 +62,18 @@ export default function Dashboard() {
         api.listSnapshots().catch(() => [] as SnapshotInfo[]),
       ]);
       if (cancelled) return;
+      // Depth cameras get an extra 3D tile alongside the 2D RGB tile so
+      // users see both views by default. The tile id is the camera id with
+      // a `:3d` suffix to keep its layout box separate from the RGB tile's.
+      const depthCams: Tile[] = cams
+        .filter((c) => c.has_depth)
+        .map((c): Tile => ({
+          kind: "pointcloud",
+          data: { ...c, id: `${c.id}:3d` },
+        }));
       setTiles([
         ...cams.map((c): Tile => ({ kind: "camera", data: c })),
+        ...depthCams,
         ...streams.map((s): Tile => ({ kind: "derived", data: s })),
         ...snaps.map((s): Tile => ({ kind: "snapshot", data: s })),
       ]);
@@ -239,7 +250,9 @@ export default function Dashboard() {
               ? <CameraTile camera={t.data} />
               : t.kind === "derived"
                 ? <CameraTile camera={derivedToCameraShim(t.data)} badge="derived" pipelineId={t.data.pipeline_id} sourceCameraId={t.data.source_camera_id} />
-                : <SnapshotTile info={t.data} />,
+                : t.kind === "pointcloud"
+                  ? <PointCloudTile camera={t.data} />
+                  : <SnapshotTile info={t.data} />,
           ),
         )}
         {Object.entries(stored.logs).map(([uid, entry]) =>

@@ -37,7 +37,8 @@ export type SnapshotInfo = {
 export type Tile =
   | { kind: "camera"; data: CameraInfo }
   | { kind: "derived"; data: DerivedStream }
-  | { kind: "snapshot"; data: SnapshotInfo };
+  | { kind: "snapshot"; data: SnapshotInfo }
+  | { kind: "pointcloud"; data: CameraInfo };
 
 export type PipelineDef = {
   id: string;
