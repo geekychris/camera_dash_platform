@@ -147,6 +147,57 @@ async def main() -> None:
         await goto(page, "/events", 3000)  # let some SSE events flow
         await shot(page, "11-events")
 
+        # ============ POINT CLOUD ============
+        # The dashboard automatically adds a `pointcloud` tile for any depth
+        # camera (PointCloudTile). We just need to land on /dashboard and
+        # confirm a 3D tile rendered before snapping. If no depth camera is
+        # configured this is a no-op; the README still works because the
+        # previous shot covers the dashboard.
+        await goto(page, "/dashboard", 5000)  # WebGL + WS depth handshake
+        pc_tile = await page.query_selector('span:has-text("point cloud")')
+        if pc_tile:
+            box = await pc_tile.bounding_box()
+            if box:
+                # Crop to the 3D tile + a margin so the README reader gets a
+                # focused shot, not the whole layout.
+                clip = {
+                    "x": max(0, box["x"] - 24),
+                    "y": max(0, box["y"] - 24),
+                    "width": min(VIEWPORT["width"], 720),
+                    "height": min(VIEWPORT["height"], 460),
+                }
+                await page.screenshot(path=str(OUT / "12-pointcloud.png"), clip=clip)
+                print(f"  saved {Path('docs/screenshots/12-pointcloud.png')}")
+
+        # ============ AUDIO EVENTS ============
+        # Filter the events page to audio_event entries (the kind sink.sqlite
+        # uses when the example audio pipeline is installed). If none exist,
+        # the unfiltered events page is captured instead.
+        await goto(page, "/events", 1500)
+        kind_input = await page.query_selector('input[placeholder*="kind" i]')
+        if kind_input:
+            await kind_input.fill("audio_event")
+            await page.wait_for_timeout(800)
+        await shot(page, "13-audio-events")
+
+        # ============ PWA NotifyButton ============
+        # Snap the dashboard header strip so the 🔔 button is visible. The
+        # full dashboard already covers the rest; we just want a tight crop
+        # for the README.
+        await goto(page, "/dashboard", 1500)
+        bell = await page.query_selector('button:has-text("🔔")')
+        if bell:
+            box = await bell.bounding_box()
+            if box:
+                clip = {
+                    "x": 0,
+                    "y": 0,
+                    "width": VIEWPORT["width"],
+                    "height": max(80, int(box["y"] + box["height"] + 8)),
+                }
+                await page.screenshot(path=str(OUT / "14-pwa-push.png"), clip=clip)
+                print(f"  saved {Path('docs/screenshots/14-pwa-push.png')}")
+
         await browser.close()
         print(f"\nDone. {len(list(OUT.glob('*.png')))} screenshots in {OUT}")
 

@@ -114,6 +114,28 @@ The **Clips** tab is a thumbnail grid of every clip the `sink.recorder` node has
 
 The **Events** tab shows live SSE events on the left (each `sink.console`, `sink.sqlite`, or `condition.*` fire shows up in real time) and a queryable history of events the platform has persisted on the right. Every event includes the source pipeline + camera + the full JSON payload, so you can debug a pipeline by watching what it's actually emitting.
 
+### 3D point cloud — Kinect depth, rendered live in the browser
+
+![3D point-cloud tile for a Kinect 360 depth feed](docs/screenshots/12-pointcloud.png)
+
+Drop a **3D** tile next to any depth-capable camera (Kinect v1/v2, OAK-D, RealSense). Three.js back-projects the uint16 mm depth matrix through pinhole intrinsics into XYZ, paints with a turbo palette (warm near, cool far), and gives you orbit (drag) + zoom (wheel) — all in the browser, no plugin. Auto-stretches the colour range every frame so a 1–3m scene doesn't look like a flat band.
+
+### Audio pipelines — YAMNet, the same shape as video
+
+![Audio event log — YAMNet detections in the Events tab](docs/screenshots/13-audio-events.png)
+
+A USB mic is just another source: `source.audio` publishes PCM on the `audio` channel, `detector.audio_class` runs YAMNet (521 AudioSet classes) on rolling 0.96s windows. Detections share the same `Event` shape as video events, so the same SSE stream, SQLite log, alert tile, and notification sink wiring all work — sound and video events show up side-by-side.
+
+### Home Assistant — fire HA services from any pipeline event
+
+`sink.home_assistant` calls the HA REST API. Two modes: full service-call (`light.turn_on` + service data) or the convenience `entity_id` + `action` (`on`/`off`/`toggle`). Per-target cooldown so a chatty trigger doesn't hammer HA. Drop it after any `condition.*` and your existing automations get camera-aware in five minutes.
+
+### Push notifications — install the dashboard as a PWA
+
+![NotifyButton in dashboard header — enable push from any browser](docs/screenshots/14-pwa-push.png)
+
+A bell in the dashboard header subscribes the browser to push notifications. Add to home screen on iOS/Android (the manifest makes it installable as a standalone app), enable push, and every `condition.*` match fires a notification to your device — even when the browser is closed. Backend is `pywebpush` with VAPID keys you generate via `camera_dash vapid`; subscriptions persist in SQLite, so phones stay subscribed across backend restarts.
+
 ## Documentation
 
 | Document | What's in it |
@@ -122,22 +144,24 @@ The **Events** tab shows live SSE events on the left (each `sink.console`, `sink
 | [INSTALLATION.md](docs/INSTALLATION.md) | Per-platform install (macOS, Ubuntu/Debian, Fedora, Arch, Raspberry Pi), GPU notes, Docker, env vars |
 | [RASPBERRY_PI.md](docs/RASPBERRY_PI.md) | End-to-end Pi 5 install with systemd auto-start; gotchas + day-to-day ops |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System diagrams, data flow, plugin system, design choices, code layout |
-| [NODES.md](docs/NODES.md) | Reference for all 39 built-in nodes with config + ports |
+| [NODES.md](docs/NODES.md) | Reference for all 56 built-in nodes with config + ports |
 | [API.md](docs/API.md) | REST endpoints, SSE/WebSocket streams, MCP tools |
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Writing nodes, plugins, tile types; tests; debugging |
 | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common failure modes + fixes (most are real bugs we hit and resolved) |
 
 ## What's in the box
 
-**Cameras**: UVC (built-in webcams + USB cameras), FLIR PureThermal + Lepton 3/3.5 (with true radiometric temp-on-hover), Xbox 360 Kinect (v1, RGB + 11-bit depth, requires `libfreenect` — see install), RTSP/IP cameras, desktop screen capture, Luxonis OAK-D/OAK-1 stereo.
+**Cameras**: UVC (built-in webcams + USB cameras), FLIR PureThermal + Lepton 3/3.5 (with true radiometric temp-on-hover), Xbox 360 Kinect (v1, RGB + 11-bit depth, requires `libfreenect` — see install), RTSP/IP cameras, desktop screen capture, Luxonis OAK-D/OAK-1 stereo, USB microphones via PortAudio.
 
-**Detection**: YOLOv8/v11, YOLO-World (open-vocab text prompts), ONNX Runtime, OpenCV DNN, MediaPipe face + pose, MOG2 motion, optical flow, instance segmentation, EasyOCR, background anomaly, and **Claude vision** for rich descriptions.
+**Detection**: YOLOv8/v11, YOLO-World (open-vocab text prompts), **Coral Edge TPU YOLO**, ONNX Runtime, OpenCV DNN, MediaPipe face + pose, MOG2 motion, optical flow, instance segmentation, EasyOCR, background anomaly, depth-background subtraction, **YAMNet audio classification**, and **Claude vision** for rich descriptions.
 
-**Conditions**: metadata match (Python expression with safe AST), temperature gate, polygon zone (enter/leave/dwell), object counter, line crossing, time-of-day schedule, cooldown/debounce.
+**Transforms**: resize/crop/colormap/annotate/throttle, frame-rate sampling, depth colormap, depth-enriched detections, ByteTrack tracker, polygon privacy mask, and **cross-camera Re-ID** (CLIP embeddings, shared in-process so the same person keeps their `track_id` across pipelines).
 
-**Sinks**: MQTT, Kafka, HTTP webhook, Telegram, ntfy.sh, Pushover, SMTP email, console log, SQLite event log, clip recorder, derived video stream.
+**Conditions**: metadata match (Python expression with safe AST), temperature gate, polygon zone (enter/leave/dwell), object counter, line crossing, time-of-day schedule, cooldown/debounce, depth-distance gate, depth-volume gate, pose-based fall detection.
 
-**Dashboard**: free-positioning tiles (drag + 8-way resize) for live video, annotated derived streams, scrollable log tiles, flashing alert tiles with audio, stats tiles with live fps, and timeline tiles showing event ticks.
+**Sinks**: MQTT, Kafka, HTTP webhook, **Home Assistant REST**, Telegram, ntfy.sh, Pushover, Slack, SMTP email, console log, JSON-lines, SQLite event log, clip recorder, derived video stream, .ply point-cloud writer.
+
+**Dashboard**: free-positioning tiles (drag + 8-way resize) for live video, annotated derived streams, **3D point-cloud viewer** (Three.js, orbit + zoom), scrollable log tiles, flashing alert tiles with audio, stats tiles with live fps, and timeline tiles showing event ticks. **Installable as a PWA** with push notifications.
 
 **Pipeline editor**: visual React Flow editor + JSON properties panel, **AI composer** (Claude generates a pipeline from a prompt), built-in starter templates.
 

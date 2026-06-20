@@ -1,0 +1,9 @@
+{
+  "name": "Coral Edge TPU doorway counter",
+  "description": "Edge-TPU YOLO + tracker + horizontal line crossing → logged crossings in SQLite. Annotated stream lands on the dashboard as a derived tile.",
+  "use_case": "Pi + Coral USB on a doorway or hallway. Inference cost is ~1-2 W on the TPU vs ~6 W for CPU YOLO. Drop in your own Edge-TPU-compiled .tflite or one from the pycoral examples.",
+  "tags": ["coral", "edge_tpu", "counting", "pi"],
+  "complexity": "medium",
+  "requires_env": [],
+  "placeholders": ["REPLACE_ME"]
+}

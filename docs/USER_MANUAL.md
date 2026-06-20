@@ -252,8 +252,58 @@ Drop one of these sinks at the end of any condition chain:
 | `sink.telegram` | `bot_token` + `chat_id` (or env vars) | Free. Make a bot via @BotFather. |
 | `sink.pushover` | `app_token` + `user_key` | $5 one-time, supports emergency priority |
 | `sink.email` | SMTP host/port + creds | For digests or low-noise alerts |
+| `sink.slack` | `webhook_url` | Slack incoming webhook |
+| `sink.home_assistant` | `entity_id`+`action` or `service`+`service_data` | Trigger HA scenes/lights/switches |
 
-All four use the same `{kind} on {camera_id} — {summary}` template by default; override `template` in the node config.
+All use the same `{kind} on {camera_id} — {summary}` template by default; override `template` in the node config.
+
+### Built-in browser push (no third party)
+
+Click the **🔔 alerts off** button in the dashboard header. The browser asks for permission; once granted, every EventBus event fires a Web Push to the device — works on desktop and on iOS/Android once you install the dashboard as a PWA (Share → Add to Home Screen). Subscriptions persist in SQLite, so phones stay subscribed across backend restarts.
+
+Setup once on the backend:
+
+```bash
+backend/.venv/bin/pip install -e 'backend[push]'
+backend/.venv/bin/camera_dash vapid  # prints export lines
+# add the three CAMERA_DASH_VAPID_* env vars to your systemd unit
+sudo systemctl restart camera_dash-backend
+```
+
+Without the VAPID env vars set, the button shows **no VAPID** disabled and the feature is a no-op (everything else keeps working).
+
+---
+
+## Audio pipelines
+
+A USB mic is just another source. The same Event shape, the same EventBus, the same SSE stream — sound events appear next to camera events in the Events tab.
+
+- **`source.audio`** captures PCM via PortAudio. Set its `camera_id` to a bus key (e.g. `"mic_default"`); reuse the same id elsewhere if you want a video camera + mic to share a routing key.
+- **`detector.audio_class`** runs YAMNet (TF Hub) on rolling 0.96s windows. Filter the 521 AudioSet classes down to what you care about (`["Glass", "Dog", "Smoke", "Siren", "Speech"]`).
+- Install the **`audio_event_log`** example from the **Examples** tab to see it end-to-end.
+
+---
+
+## Depth + 3D point cloud
+
+Any depth-capable camera (Kinect v1/v2, OAK-D, RealSense) automatically gets a **3D** tile on the dashboard alongside its RGB tile. The 3D tile is a live Three.js point cloud — drag to orbit, wheel to zoom. Same intrinsics as `sink.point_cloud` so the colors and geometry match a captured `.ply`.
+
+Depth-aware pipeline nodes:
+
+- **`detector.depth_background`** — background-subtracts the depth median; emits boxes for things closer than background by N mm
+- **`transform.enrich_with_depth`** — adds `depth_m` to each detection's `attrs` by sampling depth at the box centre
+- **`condition.distance_gate`** — fires when a detection is closer than (or farther than) a threshold
+- **`condition.depth_volume`** — fires when a 3D box's voxel occupancy crosses a threshold
+- **`condition.fall_detection`** — heuristic fall detector from pose keypoints
+- **`sink.point_cloud`** — writes a `.ply` per frame (rate-limit with `transform.frame_sample`)
+
+---
+
+## Cross-camera Re-ID
+
+`transform.reid` stamps a global `track_id` (in detection `attrs`) by cosine-matching CLIP (or histogram fallback) embeddings against recent embeddings from other pipelines on the same backend. Drop it after a detector + before `transform.annotate` and the annotated stream shows `id=N person` boxes that stay consistent as the same person walks across cameras.
+
+Install the **`cross_camera_reid`** example for a working two-camera setup.
 
 ---
 

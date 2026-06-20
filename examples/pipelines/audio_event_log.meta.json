@@ -1,0 +1,9 @@
+{
+  "name": "Audio event log (YAMNet)",
+  "description": "Listens on a system microphone, classifies sounds with YAMNet (521 AudioSet classes), filters down to a useful subset, and logs to SQLite.",
+  "use_case": "Pair a USB mic with your camera setup to catch sound-only events (glass break, siren, dog bark, door slam) the cameras can't see.",
+  "tags": ["audio", "yamnet", "events", "demo"],
+  "complexity": "easy",
+  "requires_env": [],
+  "placeholders": []
+}

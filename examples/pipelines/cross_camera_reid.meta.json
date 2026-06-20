@@ -1,0 +1,9 @@
+{
+  "name": "Cross-camera Re-ID (front + back door)",
+  "description": "Two cameras run YOLO for people, then transform.reid stamps a global track_id so the same person walking from front to back gets the same id. Annotated streams show up as derived dashboard tiles.",
+  "use_case": "Track the same person across non-overlapping cameras. CLIP backend (auto) is more robust than the histogram fallback; CPU-friendly enough for a Pi 5.",
+  "tags": ["reid", "tracking", "multi-camera", "advanced"],
+  "complexity": "advanced",
+  "requires_env": [],
+  "placeholders": ["REPLACE_ME_FRONT", "REPLACE_ME_BACK"]
+}

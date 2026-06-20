@@ -1,0 +1,9 @@
+{
+  "name": "Home Assistant — motion turns on lights",
+  "description": "Motion + dusk-to-dawn → Home Assistant turns a porch light on. Per-camera 90s cooldown.",
+  "use_case": "Outdoor camera pointed at a walkway. Wire it to any HA light entity. Requires HOME_ASSISTANT_URL + HOME_ASSISTANT_TOKEN env vars.",
+  "tags": ["home_assistant", "home", "lights", "motion"],
+  "complexity": "easy",
+  "requires_env": ["HOME_ASSISTANT_URL", "HOME_ASSISTANT_TOKEN"],
+  "placeholders": ["REPLACE_ME"]
+}
