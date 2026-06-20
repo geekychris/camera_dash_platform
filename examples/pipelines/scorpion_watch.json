@@ -9,13 +9,20 @@
       "position": { "x": 0, "y": 0 }
     },
     {
+      "id": "sampler",
+      "type": "transform.frame_sample",
+      "config": { "target_fps": 2.0 },
+      "position": { "x": 120, "y": 0 }
+    },
+    {
       "id": "yw",
       "type": "detector.yolo_world",
       "config": {
-        "model": "yolov8s-worldv2.pt",
+        "model": "yolov8l-worldv2.pt",
         "device": "mps",
-        "classes": ["scorpion", "dog", "drone"],
-        "conf": 0.05
+        "classes": ["person", "black scorpion", "dog", "drone"],
+        "conf": 0.1,
+        "imgsz": 960
       },
       "position": { "x": 240, "y": 0 }
     },
@@ -45,7 +52,8 @@
     }
   ],
   "edges": [
-    { "from": "src.frame",          "to": "yw.frame" },
+    { "from": "src.frame",          "to": "sampler.frame" },
+    { "from": "sampler.frame",      "to": "yw.frame" },
     { "from": "src.frame",          "to": "annot.frame" },
     { "from": "yw.detections",      "to": "annot.detections" },
     { "from": "annot.frame",        "to": "stream.frame" },

@@ -96,3 +96,25 @@ async def update_label(camera_id: str, payload: LabelPatch, request: Request) ->
     cam = mgr.get(camera_id)
     assert cam is not None
     return _enrich(cam.info(), request)
+
+
+@router.post("/{camera_id}/restream", response_model=CameraOut)
+async def restream(camera_id: str, request: Request) -> CameraOut:
+    """Tear down and recreate the GStreamer publisher for one camera.
+
+    Useful when rtspclientsink loses its connection to MediaMTX (e.g. after a
+    relay restart) without affecting other cameras or the capture loop.
+    """
+    mgr = request.app.state.camera_manager
+    streaming = request.app.state.streaming
+    cam = mgr.get(camera_id)
+    if cam is None:
+        raise HTTPException(404, "camera not found")
+    await streaming.detach(camera_id)
+    info = cam.info()
+    params = info.get("params", {})
+    w = int(params.get("width", 1280))
+    h = int(params.get("height", 720))
+    fps = int(params.get("fps", 30))
+    await streaming.attach(camera_id, w, h, fps)
+    return _enrich(info, request)

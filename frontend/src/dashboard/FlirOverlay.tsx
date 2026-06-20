@@ -1,46 +1,103 @@
 import { RefObject, useEffect, useRef, useState } from "react";
 import { radiometricSubscribe } from "../api/client";
 
-type Pin = { x: number; y: number; celsius: number; raw: number; ts: number };
-type Stats = { min: number; max: number; center: number; rawMin: number; rawMax: number };
-
-const PIN_STORAGE_PREFIX = "camera_dash.flir.pins.";
-
-function ck2c(centiK: number): number {
-  return centiK / 100 - 273.15;
-}
+type Pin = { x: number; y: number; raw: number; ts: number };
+type Stats = { rawMin: number; rawMax: number; rawCenter: number };
+type Unit = "F" | "C" | "raw";
 
 /**
- * Heuristic: if the matrix's centi-Kelvin range is outside the plausible thermal
- * scene range (~ -40°C to 200°C ≈ centi-K 23000..47000), assume the camera is
- * in AGC mode (auto-stretched 14-bit counts, not real radiometric).
+ * Linear raw → Celsius conversion. Default values assume the Lepton is in
+ * TLinear radiometric mode at 0.01 K resolution (raw is centi-Kelvin).
+ *
+ * If the camera is in AGC mode, the raw values are auto-stretched 14-bit
+ * counts that don't map to temperature on their own — the user can fit a
+ * 2-point calibration (scale + offset) against known references.
  */
-function looksRadiometric(stats: Stats): boolean {
-  return stats.rawMin > 22000 && stats.rawMax < 47500;
+type Cal = { scale: number; offset: number };
+type RefPt = { raw: number; celsius: number };
+
+const PIN_STORAGE_PREFIX = "camera_dash.flir.pins.";
+const UNIT_STORAGE_KEY = "camera_dash.flir.unit";
+const CAL_STORAGE_PREFIX = "camera_dash.flir.cal.";
+
+const DEFAULT_CAL: Cal = { scale: 0.01, offset: -273.15 };
+
+function rawToC(raw: number, cal: Cal): number {
+  return raw * cal.scale + cal.offset;
+}
+
+function formatTemp(raw: number, unit: Unit, cal: Cal): string {
+  if (!isFinite(raw)) return "—";
+  if (unit === "raw") return String(raw);
+  const c = rawToC(raw, cal);
+  if (unit === "C") return `${c.toFixed(1)}°C`;
+  return `${(c * 9 / 5 + 32).toFixed(1)}°F`;
+}
+
+function fitCal(p1: RefPt, p2: RefPt | null, prev: Cal): Cal {
+  if (p2 && p2.raw !== p1.raw) {
+    const scale = (p2.celsius - p1.celsius) / (p2.raw - p1.raw);
+    const offset = p1.celsius - scale * p1.raw;
+    return { scale, offset };
+  }
+  // 1-point: keep slope, shift offset so p1.raw maps to p1.celsius
+  return { scale: prev.scale, offset: p1.celsius - prev.scale * p1.raw };
 }
 
 export default function FlirOverlay({
   cameraId,
-  // videoRef intentionally accepted but unused — keeps the existing call site stable
   videoRef: _videoRef,
 }: {
   cameraId: string;
   videoRef: RefObject<HTMLVideoElement>;
 }) {
   const matrixRef = useRef<{ w: number; h: number; data: Uint16Array } | null>(null);
-  const [hover, setHover] = useState<{ x: number; y: number; celsius: number; raw: number } | null>(null);
+  const [hover, setHover] = useState<{ x: number; y: number; raw: number } | null>(null);
   const [pins, setPins] = useState<Pin[]>(() => {
     try {
       return JSON.parse(localStorage.getItem(PIN_STORAGE_PREFIX + cameraId) || "[]");
     } catch { return []; }
   });
   const [stats, setStats] = useState<Stats | null>(null);
+  const [unit, setUnit] = useState<Unit>(() => {
+    const stored = localStorage.getItem(UNIT_STORAGE_KEY);
+    return stored === "C" || stored === "F" || stored === "raw" ? stored : "F";
+  });
+  const [cal, setCal] = useState<Cal>(() => {
+    try {
+      const stored = localStorage.getItem(CAL_STORAGE_PREFIX + cameraId);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (typeof parsed.scale === "number" && typeof parsed.offset === "number") {
+          return parsed;
+        }
+      }
+    } catch { /* ignore */ }
+    return DEFAULT_CAL;
+  });
+  const [showCal, setShowCal] = useState(false);
+  const [refs, setRefs] = useState<[RefPt | null, RefPt | null]>([null, null]);
+  const celsiusInputs: [
+    React.RefObject<HTMLInputElement>,
+    React.RefObject<HTMLInputElement>,
+  ] = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
+
+  function persistCal(c: Cal) {
+    setCal(c);
+    localStorage.setItem(CAL_STORAGE_PREFIX + cameraId, JSON.stringify(c));
+  }
+
+  function cycleUnit(e: React.MouseEvent) {
+    e.stopPropagation();
+    const next: Unit = unit === "F" ? "C" : unit === "C" ? "raw" : "F";
+    setUnit(next);
+    localStorage.setItem(UNIT_STORAGE_KEY, next);
+  }
 
   // Subscribe to radiometric WS + maintain rolling stats
   useEffect(() => {
     return radiometricSubscribe(cameraId, (w, h, data) => {
       matrixRef.current = { w, h, data };
-      // Frame stats — only recompute every ~250ms to avoid React thrashing
       const now = performance.now();
       if (!(window as any).__flirStatsLast || now - (window as any).__flirStatsLast > 250) {
         (window as any).__flirStatsLast = now;
@@ -52,15 +109,12 @@ export default function FlirOverlay({
         }
         const cx = Math.floor(w / 2), cy = Math.floor(h / 2);
         const center = data[cy * w + cx];
-        setStats({
-          rawMin: mn, rawMax: mx,
-          min: ck2c(mn), max: ck2c(mx), center: ck2c(center),
-        });
+        setStats({ rawMin: mn, rawMax: mx, rawCenter: center });
       }
     });
   }, [cameraId]);
 
-  // Refresh pinned points' temperatures as new frames arrive
+  // Refresh pinned points' raw values as new frames arrive
   useEffect(() => {
     if (pins.length === 0) return;
     const t = setInterval(() => {
@@ -69,8 +123,7 @@ export default function FlirOverlay({
       setPins((prev) => prev.map((p) => {
         const mx = Math.min(m.w - 1, Math.max(0, Math.floor(p.x * m.w)));
         const my = Math.min(m.h - 1, Math.max(0, Math.floor(p.y * m.h)));
-        const raw = m.data[my * m.w + mx];
-        return { ...p, raw, celsius: ck2c(raw) };
+        return { ...p, raw: m.data[my * m.w + mx] };
       }));
     }, 500);
     return () => clearInterval(t);
@@ -84,8 +137,6 @@ export default function FlirOverlay({
   }
 
   function onMove(e: React.MouseEvent<HTMLDivElement>) {
-    // Always set hover so the crosshair is visible even when the radiometric WS
-    // hasn't delivered a frame yet. Temperature defaults to NaN until we have data.
     const { px, py, cx, cy } = eventToFrac(e);
     const m = matrixRef.current;
     let raw = NaN;
@@ -94,7 +145,7 @@ export default function FlirOverlay({
       const my = Math.min(m.h - 1, Math.max(0, Math.floor(py * m.h)));
       raw = m.data[my * m.w + mx];
     }
-    setHover({ x: cx, y: cy, celsius: isFinite(raw) ? ck2c(raw) : NaN, raw });
+    setHover({ x: cx, y: cy, raw });
   }
 
   function onClick(e: React.MouseEvent<HTMLDivElement>) {
@@ -105,9 +156,27 @@ export default function FlirOverlay({
     const mx = Math.min(m.w - 1, Math.max(0, Math.floor(px * m.w)));
     const my = Math.min(m.h - 1, Math.max(0, Math.floor(py * m.h)));
     const raw = m.data[my * m.w + mx];
-    const next: Pin[] = [...pins, { x: px, y: py, celsius: ck2c(raw), raw, ts: Date.now() }];
+
+    if (showCal) {
+      // Calibration mode: click captures into the next empty reference slot.
+      // After both are filled, further clicks do nothing until a slot is cleared.
+      const idx: 0 | 1 | null = refs[0] == null ? 0 : refs[1] == null ? 1 : null;
+      if (idx == null) return;
+      const slot: RefPt = { raw, celsius: NaN };
+      setRefs(idx === 0 ? [slot, refs[1]] : [refs[0], slot]);
+      // Focus the °C input so the user can immediately type the temperature
+      setTimeout(() => celsiusInputs[idx].current?.focus(), 0);
+      return;
+    }
+
+    // Default mode: drop a pin
+    const next: Pin[] = [...pins, { x: px, y: py, raw, ts: Date.now() }];
     setPins(next);
     localStorage.setItem(PIN_STORAGE_PREFIX + cameraId, JSON.stringify(next));
+  }
+
+  function clearRef(idx: 0 | 1) {
+    setRefs(idx === 0 ? [null, refs[1]] : [refs[0], null]);
   }
 
   function removePin(i: number, e: React.MouseEvent) {
@@ -123,7 +192,31 @@ export default function FlirOverlay({
     localStorage.removeItem(PIN_STORAGE_PREFIX + cameraId);
   }
 
-  const isCalibrated = stats ? looksRadiometric(stats) : true;
+  function setRefCelsius(idx: 0 | 1, value: string) {
+    const c = parseFloat(value);
+    const cur = refs[idx];
+    if (!cur) return;
+    const slot: RefPt = { raw: cur.raw, celsius: isFinite(c) ? c : NaN };
+    setRefs(idx === 0 ? [slot, refs[1]] : [refs[0], slot]);
+  }
+
+  function applyCal() {
+    const [r1, r2] = refs;
+    if (!r1 || !isFinite(r1.celsius)) return;
+    const next = fitCal(
+      r1,
+      r2 && isFinite(r2.celsius) ? r2 : null,
+      cal
+    );
+    persistCal(next);
+  }
+
+  function resetCal() {
+    persistCal(DEFAULT_CAL);
+    setRefs([null, null]);
+  }
+
+  const isCustomCal = cal.scale !== DEFAULT_CAL.scale || cal.offset !== DEFAULT_CAL.offset;
 
   return (
     <div
@@ -132,40 +225,125 @@ export default function FlirOverlay({
       onMouseLeave={() => setHover(null)}
       onClick={onClick}
     >
-      {/* Always-visible frame stats (top-left) */}
+      {/* Frame stats (top-left) */}
       {stats && (
         <div className="pointer-events-none absolute left-1 top-1 rounded bg-black/70 px-2 py-1 text-[10px] font-mono text-white shadow">
-          {isCalibrated ? (
-            <>
-              <div>min {stats.min.toFixed(1)}°C · max {stats.max.toFixed(1)}°C</div>
-              <div>center {stats.center.toFixed(1)}°C</div>
-            </>
-          ) : (
-            <>
-              <div className="text-amber-300">⚠ AGC mode — raw counts (no °C)</div>
-              <div className="text-slate-300">range {stats.rawMin}..{stats.rawMax}</div>
-            </>
+          <div>
+            min {formatTemp(stats.rawMin, unit, cal)} · max {formatTemp(stats.rawMax, unit, cal)}
+          </div>
+          <div>center {formatTemp(stats.rawCenter, unit, cal)}</div>
+          {isCustomCal && unit !== "raw" && (
+            <div className="text-cyan-300">cal: ×{cal.scale.toExponential(2)} + {cal.offset.toFixed(2)}°C</div>
           )}
         </div>
       )}
 
-      {/* AGC warning banner */}
-      {stats && !isCalibrated && (
-        <a
-          href="https://github.com/groupgets/purethermal1-uvc-capture"
-          target="_blank"
-          rel="noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="pointer-events-auto absolute bottom-1 left-1 right-1 rounded bg-amber-900/80 px-2 py-1 text-[10px] text-amber-100 hover:bg-amber-900"
+      {/* Top-right control cluster: unit toggle + cal button */}
+      <div className="absolute right-1 top-1 flex gap-1">
+        <button
+          onClick={cycleUnit}
+          title="click to cycle °F → °C → raw"
+          className="pointer-events-auto rounded border border-slate-700 bg-black/70 px-1.5 py-0.5 text-[10px] font-mono text-slate-200 hover:bg-slate-800"
         >
-          PureThermal is in AGC mode. Click to set radiometric mode via GroupGets app.
-        </a>
-      )}
+          {unit === "raw" ? "raw" : `°${unit}`}
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); setShowCal((v) => !v); }}
+          title="calibrate raw → °C"
+          className={`pointer-events-auto rounded border px-1.5 py-0.5 text-[10px] font-mono hover:bg-slate-800 ${
+            showCal
+              ? "border-cyan-500 bg-cyan-900/70 text-cyan-100"
+              : "border-slate-700 bg-black/70 text-slate-200"
+          }`}
+        >
+          cal
+        </button>
+      </div>
+
+      {/* Calibration panel — positioned at the bottom so it occludes less of the image */}
+      {showCal && (() => {
+        const activeIdx: 0 | 1 | null = refs[0] == null ? 0 : refs[1] == null ? 1 : null;
+        return (
+          <div
+            className="pointer-events-auto absolute bottom-1 left-1 right-1 rounded border border-slate-700 bg-slate-900/95 p-2 text-[11px] text-slate-100 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+            onMouseMove={(e) => e.stopPropagation()}
+          >
+            <div className="mb-1 flex items-center justify-between">
+              <span className="font-semibold text-cyan-300">Calibrate raw → °C</span>
+              <span className="font-mono text-[10px] text-slate-400">
+                C = raw × {cal.scale.toExponential(3)} + {cal.offset.toFixed(2)}
+              </span>
+            </div>
+            <div className="mb-2 text-[10px] text-slate-400">
+              {activeIdx == null
+                ? "Both points captured. Type each °C, then apply."
+                : <>Click a known-temperature spot on the image to set <span className="text-cyan-300">pt{activeIdx + 1}</span>, then type its °C.</>}
+            </div>
+
+            {([0, 1] as const).map((i) => {
+              const r = refs[i];
+              const isActive = activeIdx === i;
+              return (
+                <div key={i} className="mb-1 flex items-center gap-1">
+                  <span className={`w-7 ${isActive ? "text-cyan-300" : "text-slate-400"}`}>
+                    pt{i + 1}{isActive ? " ◀" : ""}
+                  </span>
+                  <span className="w-20 text-right font-mono text-slate-300">
+                    {r ? `raw ${r.raw}` : isActive ? "click image…" : "—"}
+                  </span>
+                  <input
+                    ref={celsiusInputs[i]}
+                    type="number"
+                    step="0.1"
+                    placeholder="°C"
+                    value={r && isFinite(r.celsius) ? r.celsius : ""}
+                    disabled={!r}
+                    onChange={(e) => setRefCelsius(i, e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") applyCal(); }}
+                    className="w-16 rounded border border-slate-600 bg-slate-800 px-1 py-0.5 text-right font-mono text-slate-100 disabled:opacity-40"
+                  />
+                  <button
+                    onClick={() => clearRef(i)}
+                    disabled={!r}
+                    className="rounded border border-slate-700 bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700 disabled:opacity-30"
+                    title="clear this point"
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
+
+            <div className="mt-2 flex gap-1">
+              <button
+                onClick={applyCal}
+                disabled={!refs[0] || !isFinite(refs[0].celsius)}
+                className="rounded border border-cyan-600 bg-cyan-800/60 px-2 py-0.5 text-[10px] text-cyan-100 hover:bg-cyan-700/60 disabled:opacity-40"
+              >
+                apply
+              </button>
+              <button
+                onClick={resetCal}
+                className="rounded border border-slate-600 bg-slate-800 px-2 py-0.5 text-[10px] hover:bg-slate-700"
+                title="restore TLinear default (×0.01 + -273.15)"
+              >
+                reset
+              </button>
+              <button
+                onClick={() => setShowCal(false)}
+                className="ml-auto rounded border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] hover:bg-slate-700"
+              >
+                close
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Hover crosshair + tooltip */}
       {hover && (
         <>
-          {/* Horizontal line — bright cyan, full width, mix-blend for visibility on any background */}
           <div
             className="pointer-events-none absolute"
             style={{
@@ -175,7 +353,6 @@ export default function FlirOverlay({
               mixBlendMode: "difference",
             }}
           />
-          {/* Vertical line */}
           <div
             className="pointer-events-none absolute"
             style={{
@@ -185,7 +362,6 @@ export default function FlirOverlay({
               mixBlendMode: "difference",
             }}
           />
-          {/* Dot at exact cursor position */}
           <div
             className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{
@@ -194,16 +370,11 @@ export default function FlirOverlay({
               boxShadow: "0 0 0 2px rgba(0,0,0,0.6), 0 0 0 4px rgba(34,211,238,0.4)",
             }}
           />
-          {/* Tooltip — bottom-right corner of tile if cursor near right edge, else next to cursor */}
           <div
             className="pointer-events-none absolute rounded bg-black/85 px-2 py-1 font-mono text-xs text-white shadow ring-1 ring-cyan-300/40"
             style={{ left: hover.x + 16, top: hover.y + 16 }}
           >
-            {!isFinite(hover.raw)
-              ? "waiting for thermal frame…"
-              : isCalibrated
-              ? `${hover.celsius.toFixed(1)}°C`
-              : `raw ${hover.raw}`}
+            {!isFinite(hover.raw) ? "waiting for thermal frame…" : formatTemp(hover.raw, unit, cal)}
           </div>
         </>
       )}
@@ -220,17 +391,17 @@ export default function FlirOverlay({
           <div className="flex items-center gap-1">
             <div className="h-2 w-2 rounded-full bg-rose-400 ring-2 ring-rose-300" />
             <span className="rounded bg-rose-900/90 px-1.5 py-px text-[10px] font-mono text-white">
-              {isCalibrated ? `${p.celsius.toFixed(1)}°C` : p.raw}
+              {formatTemp(p.raw, unit, cal)}
             </span>
           </div>
         </div>
       ))}
 
-      {/* Clear-pins button */}
-      {pins.length > 0 && (
+      {/* Clear-pins button — below the unit/cal row, hidden while cal panel is open */}
+      {pins.length > 0 && !showCal && (
         <button
           onClick={clearPins}
-          className="pointer-events-auto absolute right-1 top-1 rounded border border-slate-700 bg-black/70 px-1.5 py-0.5 text-[10px] text-slate-300 hover:bg-slate-800"
+          className="pointer-events-auto absolute right-1 top-9 rounded border border-slate-700 bg-black/70 px-1.5 py-0.5 text-[10px] text-slate-300 hover:bg-slate-800"
         >
           clear {pins.length} pin{pins.length === 1 ? "" : "s"}
         </button>
