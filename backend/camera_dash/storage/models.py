@@ -107,3 +107,39 @@ class Clip(Base):
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     path: Mapped[str] = mapped_column(String(512))
     trigger: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class NotificationSubscription(Base):
+    """Web Push subscription registered by a dashboard client.
+
+    `subscription_json` is the raw PushSubscription dict the browser hands us
+    (endpoint + p256dh + auth); `kinds_json` is the list of event kinds the
+    client wants to receive — empty = receive all.
+    """
+
+    __tablename__ = "notification_subscriptions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    subscription_json: Mapped[str] = mapped_column(String(2048))
+    kinds_json: Mapped[str] = mapped_column(String(512), default="[]")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utc_now)
+
+    @classmethod
+    def select_all(cls):
+        return select(cls)
+
+    @classmethod
+    async def upsert(cls, s: AsyncSession, sid: str, subscription_json: str,
+                     kinds_json: str) -> NotificationSubscription:
+        existing = await s.get(cls, sid)
+        if existing is None:
+            row = cls(id=sid, subscription_json=subscription_json, kinds_json=kinds_json)
+            s.add(row)
+            return row
+        existing.subscription_json = subscription_json
+        existing.kinds_json = kinds_json
+        return existing
+
+    @classmethod
+    async def delete(cls, s: AsyncSession, sid: str) -> None:
+        await s.execute(delete(cls).where(cls.id == sid))

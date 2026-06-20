@@ -100,6 +100,12 @@ mcp = [
   "mcp>=1.2",
 ]
 
+# Web Push notifications: VAPID key generation + push delivery.
+push = [
+  "pywebpush>=2.0",
+  "py-vapid>=1.9",
+]
+
 dev = [
   "pytest>=8.3",
   "pytest-asyncio>=0.24",
@@ -117,6 +123,8 @@ camera_dash = "camera_dash.cli:main"
 "source.camera"        = "camera_dash.pipeline.nodes.sources:CameraSourceNode"
 "source.camera_depth"  = "camera_dash.pipeline.nodes.sources:CameraDepthSourceNode"
 "source.file"          = "camera_dash.pipeline.nodes.sources:FileSourceNode"
+"source.audio"         = "camera_dash.pipeline.nodes.sources:AudioSourceNode"
+"detector.audio_class" = "camera_dash.pipeline.nodes.detectors.audio_class:AudioClassifierNode"
 "detector.yolo"        = "camera_dash.pipeline.nodes.detectors.yolo:YoloDetectorNode"
 "detector.yolo_world"  = "camera_dash.pipeline.nodes.detectors.yolo_world:YoloWorldDetectorNode"
 "detector.onnx"        = "camera_dash.pipeline.nodes.detectors.onnx:OnnxDetectorNode"
@@ -130,6 +138,7 @@ camera_dash = "camera_dash.cli:main"
 "detector.ocr"         = "camera_dash.pipeline.nodes.detectors.ocr:OcrNode"
 "detector.anomaly"     = "camera_dash.pipeline.nodes.detectors.anomaly:AnomalyNode"
 "detector.depth_background" = "camera_dash.pipeline.nodes.detectors.depth_background:DepthBackgroundNode"
+"detector.coral_yolo"  = "camera_dash.pipeline.nodes.detectors.coral_yolo:CoralYoloNode"
 "transform.resize"     = "camera_dash.pipeline.nodes.transforms.resize:ResizeNode"
 "transform.crop"       = "camera_dash.pipeline.nodes.transforms.crop:CropNode"
 "transform.colormap"   = "camera_dash.pipeline.nodes.transforms.colormap:ColormapNode"
@@ -138,6 +147,7 @@ camera_dash = "camera_dash.cli:main"
 "transform.frame_sample" = "camera_dash.pipeline.nodes.transforms.frame_sample:FrameSampleNode"
 "transform.depth_colormap" = "camera_dash.pipeline.nodes.transforms.depth_colormap:DepthColormapNode"
 "transform.enrich_with_depth" = "camera_dash.pipeline.nodes.transforms.enrich_with_depth:EnrichWithDepthNode"
+"transform.reid"       = "camera_dash.pipeline.nodes.transforms.reid:ReidNode"
 "transform.tracker"    = "camera_dash.pipeline.nodes.transforms.tracker:TrackerNode"
 "transform.privacy_mask" = "camera_dash.pipeline.nodes.transforms.privacy_mask:PrivacyMaskNode"
 "condition.metadata_match"   = "camera_dash.pipeline.nodes.conditions.metadata_match:MetadataMatchNode"
@@ -165,6 +175,7 @@ camera_dash = "camera_dash.cli:main"
 "sink.point_cloud" = "camera_dash.pipeline.nodes.sinks.point_cloud:PointCloudSink"
 "sink.jsonl"    = "camera_dash.pipeline.nodes.sinks.jsonl:JsonlSink"
 "sink.slack"    = "camera_dash.pipeline.nodes.sinks.slack:SlackSink"
+"sink.home_assistant" = "camera_dash.pipeline.nodes.sinks.home_assistant:HomeAssistantSink"
 
 [project.entry-points."camera_dash.broadcasts"]
 # Broadcasts re-publish pipeline data over a different transport for many
