@@ -1,0 +1,40 @@
+{
+  "id": "cross_camera_reid",
+  "name": "Cross-camera Re-ID (front + back door)",
+  "nodes": [
+    { "id": "src_a", "type": "source.camera", "config": { "camera_id": "REPLACE_ME_FRONT" } },
+    { "id": "src_b", "type": "source.camera", "config": { "camera_id": "REPLACE_ME_BACK" } },
+    { "id": "yolo_a", "type": "detector.yolo",
+      "config": { "classes": ["person"], "conf": 0.45,
+                   "device": "${profile.default_device}" } },
+    { "id": "yolo_b", "type": "detector.yolo",
+      "config": { "classes": ["person"], "conf": 0.45,
+                   "device": "${profile.default_device}" } },
+    { "id": "reid_a", "type": "transform.reid",
+      "config": { "similarity_threshold": 0.78, "history_seconds": 60, "backend": "auto" } },
+    { "id": "reid_b", "type": "transform.reid",
+      "config": { "similarity_threshold": 0.78, "history_seconds": 60, "backend": "auto" } },
+    { "id": "ann_a", "type": "transform.annotate",
+      "config": { "label_format": "id={track_id} {label}", "thickness": 2 } },
+    { "id": "ann_b", "type": "transform.annotate",
+      "config": { "label_format": "id={track_id} {label}", "thickness": 2 } },
+    { "id": "out_a", "type": "broadcast.stream",
+      "config": { "label": "Front door · Re-ID", "fps": 10 } },
+    { "id": "out_b", "type": "broadcast.stream",
+      "config": { "label": "Back door · Re-ID", "fps": 10 } }
+  ],
+  "edges": [
+    { "from": "src_a.frame", "to": "yolo_a.frame" },
+    { "from": "src_b.frame", "to": "yolo_b.frame" },
+    { "from": "yolo_a.detections", "to": "reid_a.detections" },
+    { "from": "yolo_b.detections", "to": "reid_b.detections" },
+    { "from": "src_a.frame", "to": "reid_a.frame" },
+    { "from": "src_b.frame", "to": "reid_b.frame" },
+    { "from": "reid_a.detections", "to": "ann_a.detections" },
+    { "from": "reid_b.detections", "to": "ann_b.detections" },
+    { "from": "src_a.frame", "to": "ann_a.frame" },
+    { "from": "src_b.frame", "to": "ann_b.frame" },
+    { "from": "ann_a.frame", "to": "out_a.frame" },
+    { "from": "ann_b.frame", "to": "out_b.frame" }
+  ]
+}

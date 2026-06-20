@@ -175,8 +175,19 @@ If 8000 / 5173 / 8554 / 8889 are taken, edit:
 | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | `sink.telegram` | Telegram bot |
 | `PUSHOVER_APP_TOKEN` + `PUSHOVER_USER_KEY` | `sink.pushover` | Pushover push |
 | `SMTP_USER` + `SMTP_PASSWORD` | `sink.email` | SMTP auth |
+| `HOME_ASSISTANT_URL` + `HOME_ASSISTANT_TOKEN` | `sink.home_assistant` | Long-lived access token; HA → Profile → Security |
+| `CAMERA_DASH_VAPID_PUBLIC_KEY` + `CAMERA_DASH_VAPID_PRIVATE_KEY` + `CAMERA_DASH_VAPID_CLAIMS_SUB` | `/api/notifications/*` | Web Push (PWA bell). Generate with `camera_dash vapid`. `CLAIMS_SUB` is a `mailto:` for browser-vendor abuse contact. |
 | `CAMERA_DASH_API` | `mcp_server.py` | URL of the backend if running MCP separately |
 | `CAMERA_DASH_CONFIG` | backend lifespan | Path to deploy YAML (also settable via CLI `--config`) |
+
+### Optional install extras
+
+| Extra | Command | Why |
+|---|---|---|
+| Web Push | `pip install -e 'backend[push]'` | Adds `pywebpush` + `py-vapid` so the dashboard bell can dispatch notifications |
+| Coral Edge TPU | `sudo apt install python3-pycoral libedgetpu1-std` (Pi/Debian) or [pycoral wheel for x86_64](https://coral.ai/software/) | Required by `detector.coral_yolo`. No pip wheel exists for aarch64 Pi 5 — apt is the supported path |
+| Audio | `pip install sounddevice tensorflow-hub tensorflow` + `sudo apt install libportaudio2` | Required by `source.audio` + `detector.audio_class` |
+| Cross-camera Re-ID | `pip install open_clip_torch` | CLIP backend for `transform.reid` (histogram fallback works without it) |
 
 ## Verifying the install
 

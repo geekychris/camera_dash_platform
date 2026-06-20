@@ -276,6 +276,62 @@ flowchart LR
 
 YOLO-World prompted with `scorpion, dog, drone`. Quick way to experiment with open-vocab detection.
 
+#### `ha_motion_lights` — Motion drives a Home Assistant light
+
+Motion detector → after-dark schedule → `sink.home_assistant` turns a porch light on. Per-camera 60s cooldown so a single arrival doesn't pulse the relay.
+
+```mermaid
+flowchart LR
+    src[source.camera] --> mog[detector.mog2]
+    mog --> cool[condition.cooldown<br/>90s]
+    cool --> sch[condition.schedule<br/>17:00–06:00]
+    sch -- match --> ha[sink.home_assistant<br/>light.porch · on]
+```
+
+Requires `HOME_ASSISTANT_URL` + `HOME_ASSISTANT_TOKEN` (long-lived access token from HA → Profile → Security).
+
+#### `audio_event_log` — YAMNet sound classification
+
+USB mic → YAMNet → filter to a useful subset (`Speech`, `Dog`, `Glass`, `Smoke`, `Siren`, `Vehicle`, `Door`) → SQLite. Detections appear in the dashboard's event log alongside camera events.
+
+```mermaid
+flowchart LR
+    mic[source.audio<br/>16 kHz] --> yam[detector.audio_class<br/>YAMNet · 521 classes]
+    yam --> cool[condition.cooldown<br/>5s per_camera_kind]
+    cool --> sql[sink.sqlite<br/>kind=audio_event]
+```
+
+Pair with any camera-based pipeline — sound events show up in the same Events page next to video events.
+
+#### `coral_doorway` — Edge TPU counting
+
+YOLO on Coral USB → tracker → horizontal line crossing → SQLite log + annotated derived stream. ~1-2W inference vs ~6W for CPU YOLO; great fit for a Pi 5 with multiple cameras.
+
+```mermaid
+flowchart LR
+    src[source.camera] --> coral[detector.coral_yolo<br/>Edge TPU · person]
+    coral --> trk[transform.tracker]
+    trk --> line[condition.line_crossing<br/>y=0.6]
+    line -- match --> cool[condition.cooldown<br/>3s] --> sql[sink.sqlite]
+    trk --> ann[transform.annotate] --> out[broadcast.stream]
+```
+
+Bring your own Edge-TPU-compiled `.tflite` — `yolov5n-int8_edgetpu.tflite` from pycoral examples is a good starting point.
+
+#### `cross_camera_reid` — Same person across two cameras
+
+Two `source.camera` → YOLO on each → `transform.reid` on each → annotated stream per camera. The two `reid` nodes share an in-process embedding history, so when a person walks from the front-door camera to the back-door camera, the global `track_id` carries over (visible in the box label `id=N person`).
+
+```mermaid
+flowchart LR
+    a[source.camera<br/>front] --> ya[detector.yolo person] --> ra[transform.reid]
+    b[source.camera<br/>back]  --> yb[detector.yolo person] --> rb[transform.reid]
+    a --> ra --> aa[transform.annotate] --> oa[broadcast.stream front · Re-ID]
+    b --> rb --> ab[transform.annotate] --> ob[broadcast.stream back · Re-ID]
+```
+
+`backend: auto` uses CLIP if `open_clip` is importable, otherwise falls back to colour histogram. CLIP is more robust to lighting changes; the histogram backend is fine for similar-looking scenes.
+
 ---
 
 ## Customising an example

@@ -1,0 +1,36 @@
+{
+  "id": "coral_doorway",
+  "name": "Coral Edge TPU doorway counter",
+  "nodes": [
+    { "id": "src", "type": "source.camera", "config": { "camera_id": "REPLACE_ME" } },
+    { "id": "coral", "type": "detector.coral_yolo",
+      "config": {
+        "model_path": "/opt/coral/models/yolov5n-int8_edgetpu.tflite",
+        "labels_path": "",
+        "conf": 0.4,
+        "iou": 0.45,
+        "classes": ["person"]
+      } },
+    { "id": "trk", "type": "transform.tracker", "config": { "frame_rate": 15 } },
+    { "id": "line", "type": "condition.line_crossing",
+      "config": { "line": [[0.0, 0.6], [1.0, 0.6]], "direction": "both" } },
+    { "id": "cool", "type": "condition.cooldown",
+      "config": { "cooldown_s": 3, "scope": "per_camera_kind" } },
+    { "id": "log", "type": "sink.sqlite",
+      "config": { "kind": "doorway_cross" } },
+    { "id": "ann", "type": "transform.annotate",
+      "config": { "thickness": 2 } },
+    { "id": "out", "type": "broadcast.stream",
+      "config": { "label": "Doorway · Coral", "fps": 12 } }
+  ],
+  "edges": [
+    { "from": "src.frame", "to": "coral.frame" },
+    { "from": "coral.detections", "to": "trk.payload" },
+    { "from": "trk.payload", "to": "line.detections" },
+    { "from": "line.match", "to": "cool.payload" },
+    { "from": "cool.match", "to": "log.payload" },
+    { "from": "trk.payload", "to": "ann.detections" },
+    { "from": "src.frame", "to": "ann.frame" },
+    { "from": "ann.frame", "to": "out.frame" }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "ha_motion_lights",
+  "name": "Home Assistant — motion turns on lights",
+  "nodes": [
+    { "id": "src", "type": "source.camera", "config": { "camera_id": "REPLACE_ME" } },
+    { "id": "mog", "type": "detector.mog2",
+      "config": { "history": 500, "var_threshold": 16, "min_area": 1500 } },
+    { "id": "cool", "type": "condition.cooldown",
+      "config": { "cooldown_s": 90, "scope": "per_camera" } },
+    { "id": "schedule", "type": "condition.schedule",
+      "config": { "start": "17:00", "end": "06:00" } },
+    { "id": "ha", "type": "sink.home_assistant",
+      "config": {
+        "url_env": "HOME_ASSISTANT_URL",
+        "token_env": "HOME_ASSISTANT_TOKEN",
+        "entity_id": "light.porch",
+        "action": "on",
+        "cooldown_s": 60
+      } }
+  ],
+  "edges": [
+    { "from": "src.frame", "to": "mog.frame" },
+    { "from": "mog.detections", "to": "cool.payload" },
+    { "from": "cool.match", "to": "schedule.payload" },
+    { "from": "schedule.match", "to": "ha.payload" }
+  ]
+}
