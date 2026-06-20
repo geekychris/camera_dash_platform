@@ -136,6 +136,8 @@ Reading from `/dev/video*` requires `video` group membership. The installer adds
 - For the Pi Camera Module specifically, you'll want a `source.uvc` with `device: /dev/video0` after enabling the camera in raspi-config.
 - The HQ camera benefits from setting `width: 1920, height: 1080, fps: 15` to keep CPU low.
 
+**For an auto-starting Pi deploy (systemd, services come back after reboot), see [RASPBERRY_PI.md](RASPBERRY_PI.md)** — covers the systemd installer, the gotchas hit in real Pi 5 setups (Vite `allowedHosts`, root-owned `node_modules`, `tflite-runtime` on Python 3.13, etc.) and day-to-day operations.
+
 ## GPU deployments
 
 For an NVIDIA box (Linux or DGX Spark):

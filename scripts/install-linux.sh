@@ -168,6 +168,20 @@ if getent group video >/dev/null; then
   log "Added $REAL_USER to video group (re-login required for it to take effect)"
 fi
 
+# ---------- Restore ownership ----------
+# When this script is invoked under sudo, pip and npm both write files owned
+# by root into backend/.venv and frontend/node_modules. Subsequent runtime
+# (systemd unit running as $REAL_USER, or running run.sh from a normal
+# shell) then can't write into Vite's optimize cache, pip's bytecode dir,
+# etc. Hand the tree back to its real owner.
+if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != "root" ]]; then
+  REAL_USER="${SUDO_USER}"
+  log "Restoring ownership of $REPO_ROOT to $REAL_USER"
+  chown -R "$REAL_USER":"$REAL_USER" "$REPO_ROOT/backend/.venv" 2>/dev/null || true
+  chown -R "$REAL_USER":"$REAL_USER" "$REPO_ROOT/frontend/node_modules" 2>/dev/null || true
+  chown -R "$REAL_USER":"$REAL_USER" "$REPO_ROOT/data" 2>/dev/null || true
+fi
+
 cat <<EOF
 
 $(printf '\033[1;32m✓ camera_dash installed.\033[0m')

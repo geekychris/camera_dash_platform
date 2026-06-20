@@ -41,6 +41,7 @@ For details, deploy targets, optional deps, see [`docs/INSTALLATION.md`](docs/IN
 |---|---|
 | [USER_MANUAL.md](docs/USER_MANUAL.md) | How to use the dashboard, tiles, pipeline editor, AI composer, templates, clip browser. Everything you'd need without ever reading the code. |
 | [INSTALLATION.md](docs/INSTALLATION.md) | Per-platform install (macOS, Ubuntu/Debian, Fedora, Arch, Raspberry Pi), GPU notes, Docker, env vars |
+| [RASPBERRY_PI.md](docs/RASPBERRY_PI.md) | End-to-end Pi 5 install with systemd auto-start; gotchas + day-to-day ops |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System diagrams, data flow, plugin system, design choices, code layout |
 | [NODES.md](docs/NODES.md) | Reference for all 39 built-in nodes with config + ports |
 | [API.md](docs/API.md) | REST endpoints, SSE/WebSocket streams, MCP tools |
