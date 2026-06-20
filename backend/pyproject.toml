@@ -65,13 +65,28 @@ mac = [
 
 rpi = [
   "camera_dash[thermal]",
-  # Inference on Pi uses tflite-runtime + onnxruntime CPU. tflite-runtime
-  # only ships wheels up to Python 3.12 as of writing; on 3.13 (Pi OS
-  # Trixie default) it's silently skipped, and onnxruntime carries the
-  # inference load. Add tflite-runtime by hand once Google publishes 3.13.
+  # Inference on Pi uses CPU torch + ultralytics for YOLO; tflite/onnx for
+  # smaller/optimised models. Pi 5 (8GB, NVMe) is the assumed baseline —
+  # torch is ~500MB but fits comfortably and YOLO is the default detector
+  # in most example pipelines. On Pi 4 or smaller, install with
+  # `pip install camera_dash[rpi-core]` (no torch/ultralytics) instead.
+  "torch>=2.5",
+  "torchvision>=0.20",
+  "ultralytics>=8.3",
   "onnxruntime>=1.20",
+  "supervision>=0.24",
+  # tflite-runtime only ships wheels up to Python 3.12 as of writing;
+  # on 3.13 (Pi OS Trixie default) it's silently skipped.
   "tflite-runtime>=2.14; platform_machine=='aarch64' and python_version<'3.13'",
   # picamera2 only available on Pi via apt; install separately
+]
+
+# Pi 4 / Pi Zero 2W / anything memory-constrained: skip torch + ultralytics.
+# Use `motion_with_annotation` / `condition.*` style pipelines instead.
+rpi-core = [
+  "camera_dash[thermal]",
+  "onnxruntime>=1.20",
+  "tflite-runtime>=2.14; platform_machine=='aarch64' and python_version<'3.13'",
 ]
 
 gpu = [

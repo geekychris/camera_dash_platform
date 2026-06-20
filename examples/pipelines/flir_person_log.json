@@ -81,6 +81,19 @@
         "x": 720,
         "y": 160
       }
+    },
+    {
+      "id": "snap",
+      "type": "broadcast.snapshot",
+      "config": {
+        "label": "FLIR + person boxes (latest)",
+        "fps": 2,
+        "jpeg_quality": 80
+      },
+      "position": {
+        "x": 720,
+        "y": 100
+      }
     }
   ],
   "edges": [
@@ -107,6 +120,10 @@
     {
       "from": "throttle.payload",
       "to": "log.payload"
+    },
+    {
+      "from": "annot.frame",
+      "to": "snap.frame"
     }
   ]
 }

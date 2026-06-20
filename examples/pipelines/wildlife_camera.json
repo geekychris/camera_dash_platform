@@ -71,6 +71,19 @@
         "format": "compact",
         "prefix": "[wildlife] "
       }
+    },
+    {
+      "id": "snap",
+      "type": "broadcast.snapshot",
+      "config": {
+        "label": "Wildlife + boxes (latest)",
+        "fps": 2,
+        "jpeg_quality": 80
+      },
+      "position": {
+        "x": 720,
+        "y": 100
+      }
     }
   ],
   "edges": [
@@ -101,6 +114,10 @@
     {
       "from": "cool.match",
       "to": "log.payload"
+    },
+    {
+      "from": "annot.frame",
+      "to": "snap.frame"
     }
   ]
 }

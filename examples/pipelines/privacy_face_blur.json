@@ -33,6 +33,19 @@
         "label": "Privacy-blurred",
         "fps": 15
       }
+    },
+    {
+      "id": "snap",
+      "type": "broadcast.snapshot",
+      "config": {
+        "label": "Privacy-blurred (latest)",
+        "fps": 2,
+        "jpeg_quality": 80
+      },
+      "position": {
+        "x": 720,
+        "y": 100
+      }
     }
   ],
   "edges": [
@@ -51,6 +64,10 @@
     {
       "from": "blur.frame",
       "to": "stream.frame"
+    },
+    {
+      "from": "blur.frame",
+      "to": "snap.frame"
     }
   ]
 }
