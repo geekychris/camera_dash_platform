@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 
 from ..streaming.mediamtx import hls_url, rtsp_url, webrtc_url
+from .cameras import _client_host
 
 router = APIRouter()
 
@@ -16,6 +17,7 @@ async def list_streams(request: Request) -> list[dict[str, Any]]:
     """List currently active derived streams (registered by ``sink.stream`` nodes)."""
     registry = request.app.state.derived_streams
     settings = request.app.state.settings
+    host = _client_host(request)
     out: list[dict[str, Any]] = []
     for s in registry.list():
         out.append({
@@ -29,9 +31,9 @@ async def list_streams(request: Request) -> list[dict[str, Any]]:
             "fps": s.fps,
             "kind": "derived",
             "urls": {
-                "webrtc": webrtc_url(settings, s.id),
-                "hls": hls_url(settings, s.id),
-                "rtsp": rtsp_url(settings, s.id),
+                "webrtc": webrtc_url(settings, s.id, host),
+                "hls": hls_url(settings, s.id, host),
+                "rtsp": rtsp_url(settings, s.id, host),
             },
         })
     return out

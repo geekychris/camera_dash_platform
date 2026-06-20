@@ -5,8 +5,13 @@
     {
       "id": "src",
       "type": "source.camera",
-      "config": { "camera_id": "laptop" },
-      "position": { "x": 0, "y": 0 }
+      "config": {
+        "camera_id": "laptop"
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
     },
     {
       "id": "yolo",
@@ -14,28 +19,56 @@
       "config": {
         "model": "yolov8n.pt",
         "device": "mps",
-        "classes": ["person", "car"],
+        "classes": [
+          "person",
+          "car"
+        ],
         "conf": 0.3
       },
-      "position": { "x": 240, "y": 0 }
+      "position": {
+        "x": 240,
+        "y": 0
+      }
     },
     {
       "id": "annot",
       "type": "transform.annotate",
-      "config": { "color": [0, 200, 255], "thickness": 2, "show_score": true },
-      "position": { "x": 480, "y": 0 }
+      "config": {
+        "color": [
+          0,
+          200,
+          255
+        ],
+        "thickness": 2,
+        "show_score": true
+      },
+      "position": {
+        "x": 480,
+        "y": 0
+      }
     },
     {
       "id": "stream",
-      "type": "sink.stream",
-      "config": { "label": "MBP + boxes (person/car)", "fps": 15 },
-      "position": { "x": 720, "y": 0 }
+      "type": "broadcast.stream",
+      "config": {
+        "label": "MBP + boxes (person/car)",
+        "fps": 15
+      },
+      "position": {
+        "x": 720,
+        "y": 0
+      }
     },
     {
       "id": "throttle",
       "type": "transform.throttle",
-      "config": { "interval_s": 5.0 },
-      "position": { "x": 480, "y": 160 }
+      "config": {
+        "interval_s": 5.0
+      },
+      "position": {
+        "x": 480,
+        "y": 160
+      }
     },
     {
       "id": "log",
@@ -45,15 +78,53 @@
         "format": "compact",
         "prefix": "[laptop] "
       },
-      "position": { "x": 720, "y": 160 }
+      "position": {
+        "x": 720,
+        "y": 160
+      }
+    },
+    {
+      "id": "snap",
+      "type": "broadcast.snapshot",
+      "config": {
+        "label": "MBP + boxes (person/car) (latest)",
+        "fps": 2,
+        "jpeg_quality": 80
+      },
+      "position": {
+        "x": 720,
+        "y": 100
+      }
     }
   ],
   "edges": [
-    { "from": "src.frame",          "to": "yolo.frame" },
-    { "from": "src.frame",          "to": "annot.frame" },
-    { "from": "yolo.detections",    "to": "annot.detections" },
-    { "from": "annot.frame",        "to": "stream.frame" },
-    { "from": "yolo.detections",    "to": "throttle.payload" },
-    { "from": "throttle.payload",   "to": "log.payload" }
+    {
+      "from": "src.frame",
+      "to": "yolo.frame"
+    },
+    {
+      "from": "src.frame",
+      "to": "annot.frame"
+    },
+    {
+      "from": "yolo.detections",
+      "to": "annot.detections"
+    },
+    {
+      "from": "annot.frame",
+      "to": "stream.frame"
+    },
+    {
+      "from": "yolo.detections",
+      "to": "throttle.payload"
+    },
+    {
+      "from": "throttle.payload",
+      "to": "log.payload"
+    },
+    {
+      "from": "annot.frame",
+      "to": "snap.frame"
+    }
   ]
 }

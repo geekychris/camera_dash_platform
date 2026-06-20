@@ -18,6 +18,8 @@ from .api import events as api_events
 from .api import examples as api_examples
 from .api import pipelines as api_pipelines
 from .api import plugins as api_plugins
+from .api import broadcast as api_broadcast
+from .api import depth as api_depth
 from .api import radiometric as api_radiometric
 from .api import snapshots as api_snapshots
 from .api import stats as api_stats
@@ -33,6 +35,7 @@ from .streaming.event_bus import EventBus
 from .streaming.frame_bus import FrameBus
 from .streaming.gst import StreamingManager
 from .streaming.registry import DerivedStreamRegistry
+from .streaming.snapshot_registry import SnapshotRegistry
 
 
 def _configure_logging() -> None:
@@ -67,19 +70,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     frame_bus = FrameBus()
     event_bus = EventBus()
     derived_streams = DerivedStreamRegistry()
+    snapshots = SnapshotRegistry()
     camera_manager = CameraManager(settings=settings, frame_bus=frame_bus)
     streaming = StreamingManager(settings=settings, frame_bus=frame_bus)
     ring_buffers = RingBufferManager(settings=settings, clips_dir=settings.storage.clips_dir)
     engine = PipelineEngine(settings=settings, catalog=catalog, frame_bus=frame_bus,
                             camera_manager=camera_manager, event_bus=event_bus,
                             streaming=streaming, derived_streams=derived_streams,
-                            ring_buffers=ring_buffers)
+                            ring_buffers=ring_buffers, snapshots=snapshots)
 
     app.state.settings = settings
     app.state.catalog = catalog
     app.state.frame_bus = frame_bus
     app.state.event_bus = event_bus
     app.state.derived_streams = derived_streams
+    app.state.snapshots = snapshots
     app.state.camera_manager = camera_manager
     app.state.streaming = streaming
     app.state.ring_buffers = ring_buffers
@@ -139,6 +144,8 @@ app.include_router(api_cameras.router, prefix="/api/cameras", tags=["cameras"])
 app.include_router(api_pipelines.router, prefix="/api/pipelines", tags=["pipelines"])
 app.include_router(api_events.router, prefix="/api/events", tags=["events"])
 app.include_router(api_radiometric.router, prefix="/api/radiometric", tags=["radiometric"])
+app.include_router(api_depth.router, prefix="/api/depth", tags=["depth"])
+app.include_router(api_broadcast.router, prefix="/api/broadcast", tags=["broadcast"])
 app.include_router(api_plugins.router, prefix="/api/plugins", tags=["plugins"])
 app.include_router(api_streams.router, prefix="/api/streams", tags=["streams"])
 app.include_router(api_clips.router, prefix="/api/clips", tags=["clips"])

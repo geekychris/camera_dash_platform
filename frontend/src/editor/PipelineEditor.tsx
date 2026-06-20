@@ -20,6 +20,7 @@ import { api, NodeDescriptor, PipelineDef } from "../api/client";
 import NodePalette from "./NodePalette";
 import PropertiesPanel from "./PropertiesPanel";
 import PipelineNode from "./nodes/PipelineNode";
+import { describeGraph, layoutGraph, renderInlineMarkdown } from "./graphUtils";
 
 const nodeTypes = { pipeline: PipelineNode };
 
@@ -103,6 +104,12 @@ function EditorBody() {
   }
 
   const selected = useMemo(() => nodes.find((n) => n.id === selectedId) || null, [nodes, selectedId]);
+  const description = useMemo(() => describeGraph(nodes, edges), [nodes, edges]);
+
+  function autoLayout() {
+    setNodes((n) => layoutGraph(n, edges));
+    setTimeout(() => rf.fitView({ padding: 0.2, duration: 300 }), 0);
+  }
 
   async function save() {
     const def = {
@@ -148,9 +155,9 @@ function EditorBody() {
 
   return (
     <div className="flex h-full">
-      <div className="w-56 shrink-0 border-r border-slate-800 bg-slate-950">
-        <div className="border-b border-slate-800 px-3 py-2 text-sm font-semibold">Pipelines</div>
-        <div className="p-2 text-sm">
+      <div className="flex h-full w-56 shrink-0 flex-col border-r border-slate-800 bg-slate-950">
+        <div className="shrink-0 border-b border-slate-800 px-3 py-2 text-sm font-semibold">Pipelines</div>
+        <div className="max-h-48 shrink-0 overflow-y-auto p-2 text-sm">
           <button
             className="mb-2 w-full rounded bg-blue-600 px-2 py-1 hover:bg-blue-500"
             onClick={() => navigate("/editor")}
@@ -170,7 +177,7 @@ function EditorBody() {
             </button>
           ))}
         </div>
-        <div className="border-t border-slate-800">
+        <div className="min-h-0 flex-1 overflow-y-auto border-t border-slate-800">
           <NodePalette catalog={catalog} onAdd={addFromPalette} />
         </div>
       </div>
@@ -198,7 +205,19 @@ function EditorBody() {
           <button className="rounded border border-slate-700 px-3 py-1 hover:bg-slate-800" onClick={stop}>
             Stop
           </button>
+          <button
+            className="rounded border border-slate-700 px-3 py-1 hover:bg-slate-800"
+            onClick={autoLayout}
+            title="Auto-arrange nodes left-to-right by graph depth"
+          >
+            Layout
+          </button>
         </div>
+        {nodes.length > 0 && (
+          <div className="border-b border-slate-800 bg-slate-950 px-3 py-2 text-xs leading-relaxed text-slate-300">
+            {renderInlineMarkdown(description)}
+          </div>
+        )}
         <div className="flex-1">
           <ReactFlow
             nodes={nodes}

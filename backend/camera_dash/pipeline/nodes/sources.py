@@ -46,6 +46,42 @@ class CameraSourceNode(Node):
             await bus.unsubscribe(camera_id, q)
 
 
+class CameraDepthSourceNode(Node):
+    """Subscribes to the depth channel of a camera and emits ``DepthFrame``s.
+
+    Only depth-capable cameras (Kinect, OAK-D with depth enabled, etc.)
+    publish on this channel — for a UVC webcam the queue stays empty forever.
+    Pair with ``source.camera`` if a pipeline needs both the color preview
+    and aligned depth.
+    """
+
+    TYPE_ID = "source.camera_depth"
+    UI_CATEGORY = "source"
+    INPUTS = ()
+    OUTPUTS = (Port("depth", PortType.DEPTH_FRAME),)
+    CONFIG_SCHEMA = {
+        "type": "object",
+        "required": ["camera_id"],
+        "properties": {
+            "camera_id": {"type": "string", "title": "Camera ID",
+                          "description": "Must be a depth-capable camera (kinect_v1, oak with depth)"},
+            "queue_depth": {"type": "integer", "default": 2, "minimum": 1, "maximum": 8},
+        },
+    }
+
+    async def run(self, inbox: Inbox, outbox: Outbox) -> None:
+        camera_id = self.config["camera_id"]
+        depth = int(self.config.get("queue_depth", 2))
+        bus = self.context.frame_bus
+        q = await bus.subscribe_depth(camera_id, depth=depth)
+        try:
+            while True:
+                df = await q.get()
+                await outbox.publish({"depth": df})
+        finally:
+            await bus.unsubscribe_depth(camera_id, q)
+
+
 class FileSourceNode(Node):
     """Reads frames from a video file (for testing pipelines without hardware)."""
 

@@ -81,6 +81,7 @@ class NodeContext:
     streaming: Any = None        # streaming.gst.StreamingManager
     derived_streams: Any = None  # streaming.registry.DerivedStreamRegistry
     ring_buffers: Any = None     # recording.ring_buffer.RingBufferManager
+    snapshots: Any = None        # streaming.snapshot_registry.SnapshotRegistry
 
 
 class Inbox:

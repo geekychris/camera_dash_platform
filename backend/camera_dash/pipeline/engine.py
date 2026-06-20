@@ -33,6 +33,7 @@ class PipelineEngine:
         streaming: Any = None,
         derived_streams: Any = None,
         ring_buffers: Any = None,
+        snapshots: Any = None,
     ) -> None:
         self.settings = settings
         self.catalog = catalog
@@ -42,6 +43,7 @@ class PipelineEngine:
         self.streaming = streaming
         self.derived_streams = derived_streams
         self.ring_buffers = ring_buffers
+        self.snapshots = snapshots
         self._runs: dict[str, _RunningPipeline] = {}
 
     async def start(self) -> None:
@@ -56,7 +58,8 @@ class PipelineEngine:
             await self.stop_pipeline(graph.id)
         run = _RunningPipeline(graph, self.settings, self.catalog,
                                self.frame_bus, self.camera_manager, self.event_bus,
-                               self.streaming, self.derived_streams, self.ring_buffers)
+                               self.streaming, self.derived_streams, self.ring_buffers,
+                               self.snapshots)
         await run.start()
         self._runs[graph.id] = run
 
@@ -81,6 +84,7 @@ class _RunningPipeline:
         streaming: Any = None,
         derived_streams: Any = None,
         ring_buffers: Any = None,
+        snapshots: Any = None,
     ) -> None:
         self.graph = graph
         self.settings = settings
@@ -91,6 +95,7 @@ class _RunningPipeline:
         self.streaming = streaming
         self.derived_streams = derived_streams
         self.ring_buffers = ring_buffers
+        self.snapshots = snapshots
         self._tasks: list[asyncio.Task[Any]] = []
         self._nodes: dict[str, Node] = {}
         self._inboxes: dict[str, Inbox] = {}
@@ -106,6 +111,7 @@ class _RunningPipeline:
             streaming=self.streaming,
             derived_streams=self.derived_streams,
             ring_buffers=self.ring_buffers,
+            snapshots=self.snapshots,
         )
         # Instantiate nodes
         for gn in self.graph.nodes:

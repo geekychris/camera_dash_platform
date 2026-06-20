@@ -44,7 +44,23 @@ def _source_element(params: dict[str, Any]) -> str:
 
 
 def _resolve_index(params: dict[str, Any], default: int) -> int:
-    """If ``device_name`` is given, look it up via DeviceMonitor and return its index."""
+    """Pick a device index for the source element.
+
+    Resolution order:
+      1. ``device_index`` if explicitly set in ``params`` — wins over name
+         lookup so users with multiple identical devices (e.g. three
+         PureThermal/Leptons) can pin a specific one. ``device_index = 0``
+         counts as explicit only when the key is present in ``params``.
+      2. ``device_name`` looked up via GStreamer DeviceMonitor.
+      3. ``default`` (typically 0).
+    """
+    # Explicit index wins. Avoid the name lookup entirely — otherwise the
+    # first device matching the name pattern silently shadows the user's pick.
+    if "device_index" in params and params["device_index"] is not None:
+        try:
+            return int(params["device_index"])
+        except (TypeError, ValueError):
+            pass
     name = params.get("device_name")
     if not name:
         return int(params.get("device_index", default))
@@ -69,6 +85,13 @@ def _resolve_index(params: dict[str, Any], default: int) -> int:
 
 
 def _resolve_v4l2(params: dict[str, Any]) -> str:
+    # Prefer an explicit device path — discover sets this from GStreamer's
+    # device.path so the user picks the actual /dev/videoN, not a sequence
+    # index that doesn't match. Fall back to device_index for back-compat
+    # with pre-discover-path saved camera specs.
+    dev = params.get("device")
+    if isinstance(dev, str) and dev:
+        return dev
     return f"/dev/video{int(params.get('device_index', 0))}"
 
 
@@ -216,8 +239,14 @@ class UvcCamera(Camera):
 def list_devices() -> list[dict[str, Any]]:
     """Best-effort enumeration of UVC cameras visible to GStreamer.
 
-    Returns a list of ``{index, name, caps}`` dicts. Caller decides which
-    indices to add via :class:`CameraManager`.
+    Returns a list of ``{index, name, caps, device}`` dicts, where ``device``
+    is the v4l2 path (``/dev/videoN``) on Linux when GStreamer exposes it.
+    Filters out non-streaming nodes (UVC metadata interfaces, Pi ISP
+    backend stages) by checking for at least one usable pixel format in
+    the device's caps — a node that ``v4l2-ctl --list-formats`` reports as
+    empty shows up here as an empty caps string and gets dropped.
+    Caller (Camera Manager UI / discover endpoint) prefers ``device`` over
+    ``index`` on Linux since the index→/dev/videoN mapping is not stable.
     """
     devices: list[dict[str, Any]] = []
     try:
@@ -231,11 +260,36 @@ def list_devices() -> list[dict[str, Any]]:
         monitor.add_filter("Video/Source", None)
         monitor.start()
         for i, dev in enumerate(monitor.get_devices() or []):
-            devices.append({
+            caps_obj = dev.get_caps()
+            caps_str = caps_obj.to_string() if caps_obj else ""
+            # Pi ISP backend stages (`pispbe`) advertise Video/Source caps
+            # but aren't user-facing cameras. Drop them.
+            name = dev.get_display_name() or ""
+            if name.lower().startswith("pispbe") or name == "pispbe":
+                continue
+            # On Linux a UVC camera typically exposes two /dev/video<N>:
+            # one with real formats, one for metadata only. The metadata
+            # node has empty caps — skip it.
+            if not caps_str or caps_str == "EMPTY":
+                continue
+            entry: dict[str, Any] = {
                 "index": i,
                 "name": dev.get_display_name(),
-                "caps": dev.get_caps().to_string()[:200] if dev.get_caps() else "",
-            })
+                "caps": caps_str[:200],
+            }
+            # Extract the v4l2 device path (e.g. /dev/video0) when present.
+            # GstV4l2Device exposes it via the GstStructure properties on Linux;
+            # macOS avfvideosrc devices don't have an analogous stable path so
+            # the field is absent there.
+            try:
+                props = dev.get_properties()
+                if props is not None:
+                    path = props.get_string("device.path")
+                    if path:
+                        entry["device"] = path
+            except Exception:  # pragma: no cover
+                pass
+            devices.append(entry)
         monitor.stop()
     except Exception:  # pragma: no cover
         log.exception("GStreamer device enumeration failed")

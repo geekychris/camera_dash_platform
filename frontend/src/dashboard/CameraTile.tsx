@@ -1,15 +1,41 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, CameraInfo, whepConnect } from "../api/client";
 import FlirOverlay from "./FlirOverlay";
+import KinectDepthOverlay from "./KinectDepthOverlay";
 import PolygonEditor from "./PolygonEditor";
+import StreamShareMenu from "./StreamShareMenu";
 
-export default function CameraTile({ camera, badge }: { camera: CameraInfo; badge?: string }) {
+export default function CameraTile({
+  camera,
+  badge,
+  pipelineId,
+  sourceCameraId,
+}: {
+  camera: CameraInfo;
+  badge?: string;
+  pipelineId?: string;
+  /** For derived/snapshot tiles: the upstream camera id the pipeline reads
+   *  from. Rendered as a small "from <cam>" badge so users can trace each
+   *  tile back to its raw source without opening the editor. */
+  sourceCameraId?: string | null;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const wheelTargetRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [showPolyEditor, setShowPolyEditor] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [shareAnchor, setShareAnchor] = useState<DOMRect | null>(null);
+  const [restarting, setRestarting] = useState(false);
+
+  async function restart(e: React.MouseEvent) {
+    e.stopPropagation();
+    setRestarting(true);
+    try { await api.restartCamera(camera.id); }
+    catch (err) { alert(`restart failed: ${err}`); }
+    finally { setRestarting(false); }
+  }
 
   // Flash the REC indicator when a clip starts for this camera (via SSE listening for 'clip_started' kind)
   useEffect(() => {
@@ -66,9 +92,21 @@ export default function CameraTile({ camera, badge }: { camera: CameraInfo; badg
       <div className="drag-handle flex h-7 shrink-0 cursor-move items-center justify-between border-b border-slate-800 bg-slate-950 px-3 text-xs select-none">
         <span className="flex min-w-0 items-center gap-2 truncate">
           {badge && (
-            <span className="rounded bg-violet-700 px-1.5 py-px text-[10px] uppercase tracking-wide text-violet-100">
-              {badge}
-            </span>
+            pipelineId ? (
+              <Link
+                to={`/editor/${pipelineId}`}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                title={`Edit pipeline ${pipelineId}`}
+                className="rounded bg-violet-700 px-1.5 py-px text-[10px] uppercase tracking-wide text-violet-100 hover:bg-violet-600"
+              >
+                {badge} ↗
+              </Link>
+            ) : (
+              <span className="rounded bg-violet-700 px-1.5 py-px text-[10px] uppercase tracking-wide text-violet-100">
+                {badge}
+              </span>
+            )
           )}
           {recording && (
             <span className="flex items-center gap-1 rounded bg-red-700 px-1.5 py-px text-[10px] uppercase tracking-wide text-white animate-pulse">
@@ -76,6 +114,14 @@ export default function CameraTile({ camera, badge }: { camera: CameraInfo; badg
             </span>
           )}
           <span className="truncate">{camera.label || camera.id}</span>
+          {sourceCameraId && (
+            <span
+              className="rounded border border-slate-700 bg-slate-900 px-1.5 py-px text-[10px] uppercase tracking-wide text-slate-400"
+              title={`Derived from camera ${sourceCameraId}`}
+            >
+              from <span className="font-mono text-amber-300">{sourceCameraId}</span>
+            </span>
+          )}
         </span>
         <span className="ml-2 flex shrink-0 items-center gap-1 text-slate-500">
           <span>{Math.round(zoom * 100)}%</span>
@@ -90,6 +136,23 @@ export default function CameraTile({ camera, badge }: { camera: CameraInfo; badg
             title="Capture snapshot (saved to /clips)"
             className="rounded border border-slate-700 px-1 text-[10px] hover:bg-slate-800"
           >📷</button>
+          <button
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+              setShareAnchor((cur) => (cur ? null : rect));
+            }}
+            title="Get stream URLs + player commands (VLC, ffplay, ffmpeg)"
+            className="rounded border border-slate-700 px-1 text-[10px] hover:bg-slate-800"
+          >🔗</button>
+          <button
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={restart}
+            disabled={restarting}
+            title="Restart this camera (drops the driver's stale handle — use after a hardware replug)"
+            className={`rounded border border-slate-700 px-1 text-[10px] hover:bg-slate-800 disabled:opacity-50 ${restarting ? "animate-spin" : ""}`}
+          >↻</button>
           <button
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); setShowPolyEditor(true); }}
@@ -112,7 +175,16 @@ export default function CameraTile({ camera, badge }: { camera: CameraInfo; badg
           style={{ transform: `scale(${zoom})`, transformOrigin: "center center", transition: "transform 0.1s" }}
         />
         {camera.is_thermal && <FlirOverlay cameraId={camera.id} videoRef={videoRef} />}
+        {camera.has_depth && <KinectDepthOverlay cameraId={camera.id} videoRef={videoRef} />}
       </div>
+      {shareAnchor && (
+        <StreamShareMenu
+          id={camera.id}
+          urls={camera.urls}
+          anchor={shareAnchor}
+          onClose={() => setShareAnchor(null)}
+        />
+      )}
       {showPolyEditor && (
         <PolygonEditor
           videoUrl={camera.urls.webrtc}

@@ -1,0 +1,8 @@
+{
+  "name": "Kinect depth (colormapped)",
+  "description": "Subscribes to the depth channel of a Kinect 360, colormaps it (turbo), and publishes the result as a derived video stream that shows up as a dashboard tile.",
+  "use_case": "Visualise depth alongside the regular RGB feed. Tune `near_mm`/`far_mm` on the depth_colormap node to bring out the distances you care about.",
+  "tags": ["demo", "kinect", "depth"],
+  "complexity": "easy",
+  "placeholders": []
+}

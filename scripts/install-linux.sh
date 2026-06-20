@@ -7,9 +7,10 @@
 # Tested on: Ubuntu 22.04/24.04, Debian 12, Raspberry Pi OS, Fedora 40, Arch.
 #
 # Usage:
-#   sudo bash scripts/install-linux.sh           # full install
-#   sudo bash scripts/install-linux.sh --core    # skip ML deps (RPi-friendly)
-#   sudo bash scripts/install-linux.sh --rpi     # use camera_dash[rpi] extras
+#   sudo bash scripts/install-linux.sh                # full install
+#   sudo bash scripts/install-linux.sh --core         # skip ML deps (RPi-friendly)
+#   sudo bash scripts/install-linux.sh --rpi          # use camera_dash[rpi] extras
+#   sudo bash scripts/install-linux.sh --with-kinect  # also install libfreenect + freenect Python wrapper
 
 set -euo pipefail
 
@@ -18,11 +19,13 @@ cd "$REPO_ROOT"
 
 CORE_ONLY=false
 RPI=false
+WITH_KINECT=false
 for arg in "$@"; do
   case "$arg" in
     --core) CORE_ONLY=true ;;
     --rpi) RPI=true; CORE_ONLY=true ;;
-    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
+    --with-kinect) WITH_KINECT=true ;;
+    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
   esac
 done
 
@@ -56,6 +59,11 @@ install_apt() {
     gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good
     gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav
     gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-pulseaudio
+    # gstreamer1.0-rtsp provides rtspclientsink — the element our streaming
+    # publisher uses to push H.264 to MediaMTX. Without it,
+    # `Gst.parse_launch` blows up with `no element "rtspclientsink"` at
+    # camera attach time and no `camera/<id>` MediaMTX path comes up.
+    gstreamer1.0-rtsp
     ffmpeg libusb-1.0-0 libusb-1.0-0-dev
     libcairo2-dev libgirepository1.0-dev pkg-config
     build-essential nodejs npm curl
@@ -93,13 +101,17 @@ install_mediamtx_binary() {
   ARCH="$(uname -m)"
   case "$ARCH" in
     x86_64) MTX_ARCH=amd64 ;;
-    aarch64|arm64) MTX_ARCH=arm64v8 ;;
+    # MediaMTX renamed the aarch64 release asset around v1.19 — used to be
+    # "arm64v8" but is now just "arm64". The api.github.com path is also
+    # rate-limited; resolve the latest tag via redirect instead.
+    aarch64|arm64) MTX_ARCH=arm64 ;;
     armv7l) MTX_ARCH=armv7 ;;
     *) err "Unsupported arch $ARCH for MediaMTX prebuilt"; return 1 ;;
   esac
-  URL=$(curl -s https://api.github.com/repos/bluenviron/mediamtx/releases/latest \
-        | grep -oE "https://[^\"]+_linux_${MTX_ARCH}\.tar\.gz" | head -1)
-  if [[ -z "$URL" ]]; then err "Could not find MediaMTX release"; return 1; fi
+  VER=$(curl -sSL -o /dev/null -w "%{url_effective}" "https://github.com/bluenviron/mediamtx/releases/latest" \
+        | sed -E 's|.*/tag/(v[0-9.]+).*|\1|')
+  if [[ -z "$VER" || "$VER" == https* ]]; then err "Could not resolve MediaMTX latest version"; return 1; fi
+  URL="https://github.com/bluenviron/mediamtx/releases/download/${VER}/mediamtx_${VER}_linux_${MTX_ARCH}.tar.gz"
   TMP="$(mktemp -d)"
   curl -sL "$URL" | tar -xz -C "$TMP"
   install -m755 "$TMP/mediamtx" /usr/local/bin/mediamtx
@@ -141,11 +153,38 @@ fi
 log "Installing frontend node deps…"
 (cd frontend && npm install --silent --no-audit --no-fund)
 
+# ---------- Optional: Kinect 360 (v1) ----------
+if $WITH_KINECT; then
+  log "Installing libfreenect + freenect Python wrapper for Kinect 360 support…"
+  # install-kinect-v1.sh runs sudo as needed; drop privileges so the venv pip
+  # call stays as the real user.
+  REAL_USER="${SUDO_USER:-$USER}"
+  if [[ -n "$REAL_USER" && "$REAL_USER" != "root" ]]; then
+    sudo -u "$REAL_USER" bash scripts/install-kinect-v1.sh || warn "Kinect installer failed (continuing)"
+  else
+    bash scripts/install-kinect-v1.sh || warn "Kinect installer failed (continuing)"
+  fi
+fi
+
 # ---------- Allow user access to /dev/video* ----------
 if getent group video >/dev/null; then
   REAL_USER="${SUDO_USER:-$USER}"
   usermod -a -G video "$REAL_USER" || warn "Could not add $REAL_USER to video group"
   log "Added $REAL_USER to video group (re-login required for it to take effect)"
+fi
+
+# ---------- Restore ownership ----------
+# When this script is invoked under sudo, pip and npm both write files owned
+# by root into backend/.venv and frontend/node_modules. Subsequent runtime
+# (systemd unit running as $REAL_USER, or running run.sh from a normal
+# shell) then can't write into Vite's optimize cache, pip's bytecode dir,
+# etc. Hand the tree back to its real owner.
+if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != "root" ]]; then
+  REAL_USER="${SUDO_USER}"
+  log "Restoring ownership of $REPO_ROOT to $REAL_USER"
+  chown -R "$REAL_USER":"$REAL_USER" "$REPO_ROOT/backend/.venv" 2>/dev/null || true
+  chown -R "$REAL_USER":"$REAL_USER" "$REPO_ROOT/frontend/node_modules" 2>/dev/null || true
+  chown -R "$REAL_USER":"$REAL_USER" "$REPO_ROOT/data" 2>/dev/null || true
 fi
 
 cat <<EOF

@@ -2,18 +2,72 @@
   "id": "privacy_face_blur",
   "name": "Privacy: blur all faces",
   "nodes": [
-    { "id": "src", "type": "source.camera", "config": { "camera_id": "REPLACE_ME" } },
-    { "id": "face", "type": "detector.mediapipe",
-      "config": { "model_selection": 1, "min_confidence": 0.5 } },
-    { "id": "blur", "type": "transform.privacy_mask",
-      "config": { "mode": "detections", "method": "pixelate", "blur_kernel": 25 } },
-    { "id": "stream", "type": "sink.stream",
-      "config": { "label": "Privacy-blurred", "fps": 15 } }
+    {
+      "id": "src",
+      "type": "source.camera",
+      "config": {
+        "camera_id": "REPLACE_ME"
+      }
+    },
+    {
+      "id": "face",
+      "type": "detector.mediapipe",
+      "config": {
+        "model_selection": 1,
+        "min_confidence": 0.5
+      }
+    },
+    {
+      "id": "blur",
+      "type": "transform.privacy_mask",
+      "config": {
+        "mode": "detections",
+        "method": "pixelate",
+        "blur_kernel": 25
+      }
+    },
+    {
+      "id": "stream",
+      "type": "broadcast.stream",
+      "config": {
+        "label": "Privacy-blurred",
+        "fps": 15
+      }
+    },
+    {
+      "id": "snap",
+      "type": "broadcast.snapshot",
+      "config": {
+        "label": "Privacy-blurred (latest)",
+        "fps": 2,
+        "jpeg_quality": 80
+      },
+      "position": {
+        "x": 720,
+        "y": 100
+      }
+    }
   ],
   "edges": [
-    { "from": "src.frame", "to": "face.frame" },
-    { "from": "src.frame", "to": "blur.frame" },
-    { "from": "face.detections", "to": "blur.detections" },
-    { "from": "blur.frame", "to": "stream.frame" }
+    {
+      "from": "src.frame",
+      "to": "face.frame"
+    },
+    {
+      "from": "src.frame",
+      "to": "blur.frame"
+    },
+    {
+      "from": "face.detections",
+      "to": "blur.detections"
+    },
+    {
+      "from": "blur.frame",
+      "to": "stream.frame"
+    },
+    {
+      "from": "blur.frame",
+      "to": "snap.frame"
+    }
   ]
 }

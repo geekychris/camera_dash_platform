@@ -2,16 +2,30 @@
 # Convenience launcher.
 #
 # Usage:
-#   ./scripts/run.sh all          # start everything (backend, mediamtx, frontend) in background
-#   ./scripts/run.sh backend      # foreground backend
-#   ./scripts/run.sh frontend     # foreground frontend dev server
-#   ./scripts/run.sh mediamtx     # foreground MediaMTX
-#   ./scripts/run.sh stop         # stop everything
+#   ./scripts/run.sh all                    # backend + frontend + mediamtx in background
+#   ./scripts/run.sh all --privileged       # backend launched as root via sudo
+#                                           #   (required for multi-FLIR on macOS — see flir_lepton.py).
+#                                           #   Run scripts/setup-passwordless-sudo.sh once so it
+#                                           #   doesn't prompt for a password.
+#   ./scripts/run.sh backend                # foreground backend
+#   ./scripts/run.sh frontend               # foreground frontend dev server
+#   ./scripts/run.sh mediamtx               # foreground MediaMTX
+#   ./scripts/run.sh stop [--privileged]    # stop everything; use --privileged if you started that way
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
+
+PRIVILEGED=false
+POSITIONAL=()
+for arg in "$@"; do
+  case "$arg" in
+    --privileged) PRIVILEGED=true ;;
+    *) POSITIONAL+=("$arg") ;;
+  esac
+done
+set -- "${POSITIONAL[@]}"
 
 # Pick the deploy profile based on platform
 case "$(uname -s)" in
@@ -44,8 +58,28 @@ start_backend() {
     echo "backend already running"
     return
   fi
-  nohup backend/.venv/bin/python -m camera_dash.cli run --config "$CONFIG" > "$BACKEND_LOG" 2>&1 &
-  echo "backend started — pid=$!  log=$BACKEND_LOG  config=$CONFIG"
+  if $PRIVILEGED; then
+    # -n means "non-interactive": if the sudoers entry isn't set up, fail
+    # immediately rather than hang waiting for a password. The helper script
+    # is intentionally tiny + takes no arguments so the sudoers rule can
+    # grant exact-path NOPASSWD with no wildcards.
+    if ! sudo -n scripts/_root-backend-start.sh; then
+      cat >&2 <<'EOF'
+
+✗ Privileged start failed. The sudoers entry isn't installed (or expired).
+  Run once:
+
+      sudo bash scripts/setup-passwordless-sudo.sh
+
+  Then re-run:  ./scripts/run.sh all --privileged
+
+EOF
+      exit 1
+    fi
+  else
+    nohup backend/.venv/bin/python -m camera_dash.cli run --config "$CONFIG" > "$BACKEND_LOG" 2>&1 &
+    echo "backend started — pid=$!  log=$BACKEND_LOG  config=$CONFIG"
+  fi
 }
 
 start_frontend() {
@@ -59,7 +93,15 @@ start_frontend() {
 
 stop_all() {
   pkill -f "vite" 2>/dev/null || true
-  pkill -f "camera_dash.cli run" 2>/dev/null || true
+  if $PRIVILEGED; then
+    # Root processes need root to die; the helper handles SIGTERM → SIGKILL.
+    if ! sudo -n scripts/_root-backend-stop.sh; then
+      echo "warning: privileged stop failed (sudoers missing?); trying user pkill" >&2
+      pkill -f "camera_dash.cli run" 2>/dev/null || true
+    fi
+  else
+    pkill -f "camera_dash.cli run" 2>/dev/null || true
+  fi
   pkill -f "mediamtx .*mediamtx.yml" 2>/dev/null || true
   echo "stopped"
 }
@@ -86,5 +128,5 @@ case "${1:-all}" in
     echo "=== mediamtx ==="; tail -n 20 "$MEDIAMTX_LOG" 2>/dev/null
     echo "=== frontend ==="; tail -n 20 "$FRONTEND_LOG" 2>/dev/null
     ;;
-  *) echo "usage: $0 {all|backend|frontend|mediamtx|stop|logs}"; exit 1 ;;
+  *) echo "usage: $0 {all|backend|frontend|mediamtx|stop|logs} [--privileged]"; exit 1 ;;
 esac

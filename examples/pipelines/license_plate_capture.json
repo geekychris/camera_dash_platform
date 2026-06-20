@@ -1,29 +1,123 @@
 {
   "id": "license_plate_capture",
-  "name": "License-plate capture (YOLO → OCR)",
+  "name": "License-plate capture (YOLO \u2192 OCR)",
   "nodes": [
-    { "id": "src", "type": "source.camera", "config": { "camera_id": "REPLACE_ME" } },
-    { "id": "yolo", "type": "detector.yolo",
-      "config": { "classes": ["car", "truck", "bus", "motorcycle"], "conf": 0.45,
-                   "device": "${profile.default_device}" } },
-    { "id": "ocr", "type": "detector.ocr",
-      "config": { "languages": ["en"], "crop_to_bboxes": true,
-                   "min_confidence": 0.45, "label_prefix": "plate:" } },
-    { "id": "annot", "type": "transform.annotate",
-      "config": { "color": [255, 220, 0], "thickness": 2, "show_score": true } },
-    { "id": "stream", "type": "sink.stream",
-      "config": { "label": "ALPR overlay", "fps": 10 } },
-    { "id": "log", "type": "sink.console", "config": { "prefix": "[alpr] " } },
-    { "id": "sqlite", "type": "sink.sqlite", "config": {} }
+    {
+      "id": "src",
+      "type": "source.camera",
+      "config": {
+        "camera_id": "REPLACE_ME"
+      }
+    },
+    {
+      "id": "yolo",
+      "type": "detector.yolo",
+      "config": {
+        "classes": [
+          "car",
+          "truck",
+          "bus",
+          "motorcycle"
+        ],
+        "conf": 0.45,
+        "device": "${profile.default_device}"
+      }
+    },
+    {
+      "id": "ocr",
+      "type": "detector.ocr",
+      "config": {
+        "languages": [
+          "en"
+        ],
+        "crop_to_bboxes": true,
+        "min_confidence": 0.45,
+        "label_prefix": "plate:"
+      }
+    },
+    {
+      "id": "annot",
+      "type": "transform.annotate",
+      "config": {
+        "color": [
+          255,
+          220,
+          0
+        ],
+        "thickness": 2,
+        "show_score": true
+      }
+    },
+    {
+      "id": "stream",
+      "type": "broadcast.stream",
+      "config": {
+        "label": "ALPR overlay",
+        "fps": 10
+      }
+    },
+    {
+      "id": "log",
+      "type": "sink.console",
+      "config": {
+        "prefix": "[alpr] "
+      }
+    },
+    {
+      "id": "sqlite",
+      "type": "sink.sqlite",
+      "config": {}
+    },
+    {
+      "id": "snap",
+      "type": "broadcast.snapshot",
+      "config": {
+        "label": "ALPR overlay (latest)",
+        "fps": 2,
+        "jpeg_quality": 80
+      },
+      "position": {
+        "x": 720,
+        "y": 100
+      }
+    }
   ],
   "edges": [
-    { "from": "src.frame", "to": "yolo.frame" },
-    { "from": "src.frame", "to": "ocr.frame" },
-    { "from": "yolo.detections", "to": "ocr.detections" },
-    { "from": "src.frame", "to": "annot.frame" },
-    { "from": "ocr.detections", "to": "annot.detections" },
-    { "from": "annot.frame", "to": "stream.frame" },
-    { "from": "ocr.detections", "to": "log.payload" },
-    { "from": "ocr.detections", "to": "sqlite.payload" }
+    {
+      "from": "src.frame",
+      "to": "yolo.frame"
+    },
+    {
+      "from": "src.frame",
+      "to": "ocr.frame"
+    },
+    {
+      "from": "yolo.detections",
+      "to": "ocr.detections"
+    },
+    {
+      "from": "src.frame",
+      "to": "annot.frame"
+    },
+    {
+      "from": "ocr.detections",
+      "to": "annot.detections"
+    },
+    {
+      "from": "annot.frame",
+      "to": "stream.frame"
+    },
+    {
+      "from": "ocr.detections",
+      "to": "log.payload"
+    },
+    {
+      "from": "ocr.detections",
+      "to": "sqlite.payload"
+    },
+    {
+      "from": "annot.frame",
+      "to": "snap.frame"
+    }
   ]
 }

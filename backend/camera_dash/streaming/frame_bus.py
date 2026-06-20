@@ -13,12 +13,13 @@ import time
 from collections import defaultdict, deque
 from collections.abc import AsyncIterator
 
-from ..pipeline.types import Frame
+from ..pipeline.types import DepthFrame, Frame
 
 
 class FrameBus:
     def __init__(self) -> None:
         self._subscribers: dict[str, list[asyncio.Queue[Frame]]] = defaultdict(list)
+        self._depth_subscribers: dict[str, list[asyncio.Queue[DepthFrame]]] = defaultdict(list)
         self._lock = asyncio.Lock()
         # Rolling window of publish timestamps per camera for fps calc.
         self._timestamps: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=60))
@@ -64,3 +65,27 @@ class FrameBus:
 
     def has_subscribers(self, camera_id: str) -> bool:
         return bool(self._subscribers.get(camera_id))
+
+    # ----- Depth channel (parallel to the color channel above) ----------------
+    # Cameras that capture depth (Kinect, OAK-D, etc.) publish on both channels.
+
+    async def subscribe_depth(self, camera_id: str, depth: int = 2) -> asyncio.Queue[DepthFrame]:
+        q: asyncio.Queue[DepthFrame] = asyncio.Queue(maxsize=depth)
+        async with self._lock:
+            self._depth_subscribers[camera_id].append(q)
+        return q
+
+    async def unsubscribe_depth(self, camera_id: str, q: asyncio.Queue[DepthFrame]) -> None:
+        async with self._lock:
+            with contextlib.suppress(ValueError):
+                self._depth_subscribers[camera_id].remove(q)
+
+    def publish_depth_nowait(self, camera_id: str, frame: DepthFrame) -> None:
+        for q in self._depth_subscribers.get(camera_id, ()):
+            if q.full():
+                with contextlib.suppress(asyncio.QueueEmpty):
+                    q.get_nowait()
+            q.put_nowait(frame)
+
+    def has_depth_subscribers(self, camera_id: str) -> bool:
+        return bool(self._depth_subscribers.get(camera_id))
