@@ -4,6 +4,7 @@ import { api, CameraInfo, DerivedStream, SnapshotInfo, Tile } from "../api/clien
 import CameraTile from "./CameraTile";
 import LogTile, { LogConfig } from "./LogTile";
 import AlertTile, { AlertConfig } from "./AlertTile";
+import NotifyButton from "./NotifyButton";
 import PointCloudTile from "./PointCloudTile";
 import SnapshotTile from "./SnapshotTile";
 import StatsTile from "./StatsTile";
@@ -224,6 +225,7 @@ export default function Dashboard() {
             onClick={addTimelineTile}
             className="rounded border border-cyan-700 px-2 py-0.5 text-cyan-300 hover:bg-cyan-900/40"
           >+ Timeline</button>
+          <NotifyButton />
           <button
             onClick={resetLayout}
             className="rounded border border-slate-700 px-2 py-0.5 hover:bg-slate-800"

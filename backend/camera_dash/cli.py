@@ -133,6 +133,29 @@ def _install_example(client: object, example_id: str, mapping: dict[str, str],
 
 
 @main.command()
+def vapid() -> None:
+    """Generate a VAPID keypair for Web Push and print env-var assignments.
+
+    Run once and copy the output into the camera_dash service environment
+    (e.g. systemd unit's Environment= lines, or a .env). The public key is
+    also served to browsers via ``GET /api/notifications/vapid``.
+    """
+    try:
+        from py_vapid import Vapid01  # type: ignore
+    except ImportError as exc:
+        raise click.ClickException(
+            "py-vapid not installed; run: pip install py-vapid"
+        ) from exc
+    v = Vapid01()
+    v.generate_keys()
+    pub = v.public_key_urlsafe()
+    priv = v.private_key_urlsafe()
+    click.echo(f"export CAMERA_DASH_VAPID_PUBLIC_KEY={pub.decode() if isinstance(pub, bytes) else pub}")
+    click.echo(f"export CAMERA_DASH_VAPID_PRIVATE_KEY={priv.decode() if isinstance(priv, bytes) else priv}")
+    click.echo("export CAMERA_DASH_VAPID_CLAIMS_SUB=mailto:admin@example.com")
+
+
+@main.command()
 def mcp() -> None:
     """Run the MCP server (stdio transport).
 

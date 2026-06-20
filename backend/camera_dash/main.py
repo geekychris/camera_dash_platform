@@ -16,6 +16,7 @@ from .api import clips as api_clips
 from .api import draft as api_draft
 from .api import events as api_events
 from .api import examples as api_examples
+from .api import notifications as api_notifications
 from .api import pipelines as api_pipelines
 from .api import plugins as api_plugins
 from .api import broadcast as api_broadcast
@@ -78,8 +79,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                             camera_manager=camera_manager, event_bus=event_bus,
                             streaming=streaming, derived_streams=derived_streams,
                             ring_buffers=ring_buffers, snapshots=snapshots)
+    notifications = api_notifications.NotificationStore()
+    await notifications.load()
 
     app.state.settings = settings
+    app.state.notifications = notifications
     app.state.catalog = catalog
     app.state.frame_bus = frame_bus
     app.state.event_bus = event_bus
@@ -103,6 +107,27 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 int(p.get("fps", 30)),
             )
     await engine.start()
+
+    # Fan EventBus events to push subscriptions. Run as a background task
+    # that subscribes its own queue — EventBus is queue-based, not callback.
+    async def _push_dispatcher() -> None:
+        q = await event_bus.subscribe()
+        try:
+            while True:
+                ev = await q.get()
+                await notifications.dispatch({
+                    "title": f"{ev.kind} · {ev.camera_id or ev.pipeline_id}",
+                    "body": str(ev.payload)[:140],
+                    "url": "/dashboard",
+                    "tag": ev.kind,
+                }, kinds=[ev.kind])
+        finally:
+            await event_bus.unsubscribe(q)
+
+    import asyncio
+    push_task = asyncio.create_task(_push_dispatcher(), name="push-dispatcher")
+    app.state.push_task = push_task
+
     # Start persisted pipelines that are marked enabled
     from .pipeline.graph import Graph
     from .storage import models
@@ -118,6 +143,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        push_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await push_task
         await engine.stop()
         await streaming.stop_all()
         await ring_buffers.stop_all()
@@ -154,6 +182,7 @@ app.include_router(api_snapshots.router, prefix="/api/snapshots", tags=["snapsho
 app.include_router(api_templates.router, prefix="/api/templates", tags=["pipelines"])
 app.include_router(api_examples.router, prefix="/api/examples", tags=["pipelines"])
 app.include_router(api_draft.router, prefix="/api/draft", tags=["pipelines"])
+app.include_router(api_notifications.router, prefix="/api/notifications", tags=["notifications"])
 
 
 @app.get("/health")
