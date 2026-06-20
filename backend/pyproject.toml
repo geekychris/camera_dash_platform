@@ -130,6 +130,7 @@ camera_dash = "camera_dash.cli:main"
 "detector.ocr"         = "camera_dash.pipeline.nodes.detectors.ocr:OcrNode"
 "detector.anomaly"     = "camera_dash.pipeline.nodes.detectors.anomaly:AnomalyNode"
 "detector.depth_background" = "camera_dash.pipeline.nodes.detectors.depth_background:DepthBackgroundNode"
+"detector.coral_yolo"  = "camera_dash.pipeline.nodes.detectors.coral_yolo:CoralYoloNode"
 "transform.resize"     = "camera_dash.pipeline.nodes.transforms.resize:ResizeNode"
 "transform.crop"       = "camera_dash.pipeline.nodes.transforms.crop:CropNode"
 "transform.colormap"   = "camera_dash.pipeline.nodes.transforms.colormap:ColormapNode"
@@ -165,6 +166,7 @@ camera_dash = "camera_dash.cli:main"
 "sink.point_cloud" = "camera_dash.pipeline.nodes.sinks.point_cloud:PointCloudSink"
 "sink.jsonl"    = "camera_dash.pipeline.nodes.sinks.jsonl:JsonlSink"
 "sink.slack"    = "camera_dash.pipeline.nodes.sinks.slack:SlackSink"
+"sink.home_assistant" = "camera_dash.pipeline.nodes.sinks.home_assistant:HomeAssistantSink"
 
 [project.entry-points."camera_dash.broadcasts"]
 # Broadcasts re-publish pipeline data over a different transport for many
