@@ -59,6 +59,11 @@ install_apt() {
     gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good
     gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav
     gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-pulseaudio
+    # gstreamer1.0-rtsp provides rtspclientsink — the element our streaming
+    # publisher uses to push H.264 to MediaMTX. Without it,
+    # `Gst.parse_launch` blows up with `no element "rtspclientsink"` at
+    # camera attach time and no `camera/<id>` MediaMTX path comes up.
+    gstreamer1.0-rtsp
     ffmpeg libusb-1.0-0 libusb-1.0-0-dev
     libcairo2-dev libgirepository1.0-dev pkg-config
     build-essential nodejs npm curl

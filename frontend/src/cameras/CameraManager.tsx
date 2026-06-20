@@ -4,8 +4,8 @@ import { api, CameraInfo, PipelineDef } from "../api/client";
 
 export default function CameraManager() {
   const [cameras, setCameras] = useState<CameraInfo[]>([]);
-  const [discovered, setDiscovered] = useState<{ index: number; name: string; hintKind?: string }[]>([]);
-  const [form, setForm] = useState({ id: "", kind: "uvc", label: "", device_index: 0 });
+  const [discovered, setDiscovered] = useState<{ index: number; name: string; device?: string; hintKind?: string }[]>([]);
+  const [form, setForm] = useState({ id: "", kind: "uvc", label: "", device_index: 0, device: "" });
   const [pipelines, setPipelines] = useState<PipelineDef[]>([]);
   const [cloningFor, setCloningFor] = useState<string | null>(null);
 
@@ -42,7 +42,7 @@ export default function CameraManager() {
     return new Set(cameras.map((c) => c.id));
   }
 
-  function selectDiscovered(d: { index: number; name: string; hintKind?: string }) {
+  function selectDiscovered(d: { index: number; name: string; device?: string; hintKind?: string }) {
     const kind = kindForDevice(d.name, d.hintKind);
     // Suggest a sensible id; if it collides, append the device index.
     const taken = existingCameraIds();
@@ -52,23 +52,29 @@ export default function CameraManager() {
       "cam";
     let id = `${slug}_${d.index}`;
     if (taken.has(id)) id = `${id}_alt`;
-    setForm({ id, kind, label: d.name, device_index: d.index });
+    setForm({ id, kind, label: d.name, device_index: d.index, device: d.device || "" });
   }
 
   async function add() {
     if (!form.id) return;
-    const baseDevice = { device_index: form.device_index, device_name: "" };
+    // Prefer the explicit /dev/video<N> path when discover reported one
+    // (Linux only — macOS doesn't expose a stable path). Pinning by path
+    // sidesteps the sequence-index vs kernel-index drift that caused the
+    // "added flir_1 → opened FLIR #1's metadata node" bug on the Pi.
+    const useDevicePath = form.device && form.device.startsWith("/dev/");
+    const baseDevice: Record<string, unknown> = useDevicePath
+      ? { device: form.device }
+      : { device_index: form.device_index };
     const params: Record<string, unknown> =
       form.kind === "uvc"
         ? { ...baseDevice, width: 1280, height: 720, fps: 30 }
         : form.kind === "kinect_v1"
           ? { device_index: form.device_index }
           : form.kind === "flir_lepton"
-            // Pin device_index so the FLIR driver opens THIS device, not the first PureThermal it finds by name.
-            ? { device_index: form.device_index, fps: 9 }
+            ? { ...baseDevice, fps: 9 }
             : { fps: 9 };
     await api.addCamera({ id: form.id, kind: form.kind, label: form.label, params });
-    setForm({ id: "", kind: "uvc", label: "", device_index: 0 });
+    setForm({ id: "", kind: "uvc", label: "", device_index: 0, device: "" });
     refresh();
   }
 

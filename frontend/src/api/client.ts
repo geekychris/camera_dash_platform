@@ -61,7 +61,7 @@ export const api = {
   listCameras: () => fetch(`${API}/cameras`).then(jsonOrThrow<CameraInfo[]>),
   listStreams: () => fetch(`${API}/streams`).then(jsonOrThrow<DerivedStream[]>),
   discoverCameras: () => fetch(`${API}/cameras/discover`).then(jsonOrThrow<{
-    uvc: { index: number; name: string }[];
+    uvc: { index: number; name: string; device?: string }[];
     kinect?: { index: number; name: string; serial?: string }[];
   }>),
   addCamera: (c: Omit<CameraInfo, "running" | "is_thermal" | "urls"> & { enabled?: boolean }) =>
