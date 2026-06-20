@@ -42,6 +42,33 @@ class Frame:
 
 
 @dataclass(slots=True)
+class DepthFrame:
+    """A depth map co-registered with a color frame.
+
+    ``data`` is a (H, W) ``uint16`` array of distances in millimetres. ``0``
+    means "no reading" (out-of-range, IR shadow, or sensor noise) — downstream
+    nodes must treat zeros as invalid, not as zero-distance.
+    """
+
+    camera_id: str
+    timestamp_ns: int
+    width: int
+    height: int
+    data: np.ndarray  # (H, W) uint16, millimetres; 0 == invalid
+    fov_deg: tuple[float, float] | None = None  # (horizontal, vertical) in degrees, if known
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def shape(self) -> tuple[int, int]:
+        return self.height, self.width
+
+    def distance_mm(self, x: int, y: int) -> int | None:
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return None
+        v = int(self.data[y, x])
+        return v if v > 0 else None
+
+
+@dataclass(slots=True)
 class Detection:
     label: str
     score: float
@@ -83,6 +110,7 @@ class PortType(StrEnum):
     """Port types determine queue semantics in the engine."""
 
     FRAME = "frame"             # drop-oldest, very small queue (live video)
+    DEPTH_FRAME = "depth_frame"  # drop-oldest, parallel depth stream from Kinect/OAK
     DETECTIONS = "detections"   # small queue, drop-oldest
     EVENT = "event"             # keep all, never drop (alerts)
     TRIGGER = "trigger"         # boolean/payload pulses, keep all
@@ -90,6 +118,7 @@ class PortType(StrEnum):
 
 PORT_TYPE_QUEUE_DEPTH = {
     PortType.FRAME: 2,
+    PortType.DEPTH_FRAME: 2,
     PortType.DETECTIONS: 4,
     PortType.EVENT: 256,
     PortType.TRIGGER: 64,
@@ -97,6 +126,7 @@ PORT_TYPE_QUEUE_DEPTH = {
 
 PORT_TYPE_DROP_OLDEST = {
     PortType.FRAME: True,
+    PortType.DEPTH_FRAME: True,
     PortType.DETECTIONS: True,
     PortType.EVENT: False,
     PortType.TRIGGER: False,

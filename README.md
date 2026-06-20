@@ -2,7 +2,7 @@
 
 A self-hosted, pluggable computer-vision platform for multiple concurrent cameras.
 
-Drives USB UVC, FLIR thermal, IP/RTSP, screen capture, and Luxonis OAK cameras. Arranges live feeds in a browser dashboard with draggable tiles, runs configurable detection pipelines authored in a visual editor (or composed by Claude from a natural-language prompt), and emits classification events over MQTT, Kafka, ntfy, Telegram, email, webhooks, and more.
+Drives USB UVC, FLIR thermal, Xbox 360 Kinect (depth), IP/RTSP, screen capture, and Luxonis OAK cameras. Arranges live feeds in a browser dashboard with draggable tiles, runs configurable detection pipelines authored in a visual editor (or composed by Claude from a natural-language prompt), and emits classification events over MQTT, Kafka, ntfy, Telegram, email, webhooks, and more.
 
 ```mermaid
 flowchart TB
@@ -49,7 +49,7 @@ For details, deploy targets, optional deps, see [`docs/INSTALLATION.md`](docs/IN
 
 ## What's in the box
 
-**Cameras**: UVC (built-in webcams + USB cameras), FLIR PureThermal + Lepton 3/3.5 (with true radiometric temp-on-hover), RTSP/IP cameras, desktop screen capture, Luxonis OAK-D/OAK-1 stereo.
+**Cameras**: UVC (built-in webcams + USB cameras), FLIR PureThermal + Lepton 3/3.5 (with true radiometric temp-on-hover), Xbox 360 Kinect (v1, RGB + 11-bit depth, requires `libfreenect` — see install), RTSP/IP cameras, desktop screen capture, Luxonis OAK-D/OAK-1 stereo.
 
 **Detection**: YOLOv8/v11, YOLO-World (open-vocab text prompts), ONNX Runtime, OpenCV DNN, MediaPipe face + pose, MOG2 motion, optical flow, instance segmentation, EasyOCR, background anomaly, and **Claude vision** for rich descriptions.
 

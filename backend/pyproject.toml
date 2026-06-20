@@ -97,6 +97,7 @@ camera_dash = "camera_dash.cli:main"
 [project.entry-points."camera_dash.nodes"]
 # Built-in nodes register here at install time
 "source.camera"        = "camera_dash.pipeline.nodes.sources:CameraSourceNode"
+"source.camera_depth"  = "camera_dash.pipeline.nodes.sources:CameraDepthSourceNode"
 "source.file"          = "camera_dash.pipeline.nodes.sources:FileSourceNode"
 "detector.yolo"        = "camera_dash.pipeline.nodes.detectors.yolo:YoloDetectorNode"
 "detector.yolo_world"  = "camera_dash.pipeline.nodes.detectors.yolo_world:YoloWorldDetectorNode"
@@ -110,12 +111,15 @@ camera_dash = "camera_dash.cli:main"
 "detector.segmentation"= "camera_dash.pipeline.nodes.detectors.segmentation:SegmentationNode"
 "detector.ocr"         = "camera_dash.pipeline.nodes.detectors.ocr:OcrNode"
 "detector.anomaly"     = "camera_dash.pipeline.nodes.detectors.anomaly:AnomalyNode"
+"detector.depth_background" = "camera_dash.pipeline.nodes.detectors.depth_background:DepthBackgroundNode"
 "transform.resize"     = "camera_dash.pipeline.nodes.transforms.resize:ResizeNode"
 "transform.crop"       = "camera_dash.pipeline.nodes.transforms.crop:CropNode"
 "transform.colormap"   = "camera_dash.pipeline.nodes.transforms.colormap:ColormapNode"
 "transform.annotate"   = "camera_dash.pipeline.nodes.transforms.annotate:AnnotateNode"
 "transform.throttle"   = "camera_dash.pipeline.nodes.transforms.throttle:ThrottleNode"
 "transform.frame_sample" = "camera_dash.pipeline.nodes.transforms.frame_sample:FrameSampleNode"
+"transform.depth_colormap" = "camera_dash.pipeline.nodes.transforms.depth_colormap:DepthColormapNode"
+"transform.enrich_with_depth" = "camera_dash.pipeline.nodes.transforms.enrich_with_depth:EnrichWithDepthNode"
 "transform.tracker"    = "camera_dash.pipeline.nodes.transforms.tracker:TrackerNode"
 "transform.privacy_mask" = "camera_dash.pipeline.nodes.transforms.privacy_mask:PrivacyMaskNode"
 "condition.metadata_match"   = "camera_dash.pipeline.nodes.conditions.metadata_match:MetadataMatchNode"
@@ -125,6 +129,9 @@ camera_dash = "camera_dash.cli:main"
 "condition.line_crossing"    = "camera_dash.pipeline.nodes.conditions.line_crossing:LineCrossingNode"
 "condition.schedule"         = "camera_dash.pipeline.nodes.conditions.schedule:ScheduleNode"
 "condition.cooldown"         = "camera_dash.pipeline.nodes.conditions.cooldown:CooldownNode"
+"condition.distance_gate"    = "camera_dash.pipeline.nodes.conditions.distance_gate:DistanceGateNode"
+"condition.depth_volume"     = "camera_dash.pipeline.nodes.conditions.depth_volume:DepthVolumeNode"
+"condition.fall_detection"   = "camera_dash.pipeline.nodes.conditions.fall_detection:FallDetectionNode"
 
 [project.entry-points."camera_dash.sinks"]
 "sink.mqtt"     = "camera_dash.pipeline.nodes.sinks.mqtt:MqttSink"
@@ -133,11 +140,21 @@ camera_dash = "camera_dash.cli:main"
 "sink.recorder" = "camera_dash.pipeline.nodes.sinks.recorder:RecorderSink"
 "sink.sqlite"   = "camera_dash.pipeline.nodes.sinks.sqlite_event:SqliteEventSink"
 "sink.console"  = "camera_dash.pipeline.nodes.sinks.console:ConsoleSink"
-"sink.stream"   = "camera_dash.pipeline.nodes.sinks.stream:StreamSink"
 "sink.telegram" = "camera_dash.pipeline.nodes.sinks.telegram:TelegramSink"
 "sink.ntfy"     = "camera_dash.pipeline.nodes.sinks.ntfy:NtfySink"
 "sink.pushover" = "camera_dash.pipeline.nodes.sinks.pushover:PushoverSink"
 "sink.email"    = "camera_dash.pipeline.nodes.sinks.email:EmailSink"
+"sink.point_cloud" = "camera_dash.pipeline.nodes.sinks.point_cloud:PointCloudSink"
+"sink.jsonl"    = "camera_dash.pipeline.nodes.sinks.jsonl:JsonlSink"
+"sink.slack"    = "camera_dash.pipeline.nodes.sinks.slack:SlackSink"
+
+[project.entry-points."camera_dash.broadcasts"]
+# Broadcasts re-publish pipeline data over a different transport for many
+# in-platform consumers. Not terminal — data continues flowing inside the
+# platform, just to a different surface (live video stream, snapshot URL,
+# server-sent events, etc.).
+"broadcast.stream" = "camera_dash.pipeline.nodes.broadcasts.stream:StreamBroadcast"
+"broadcast.snapshot" = "camera_dash.pipeline.nodes.broadcasts.snapshot:SnapshotBroadcast"
 
 [tool.hatch.build.targets.wheel]
 packages = ["camera_dash"]

@@ -1,12 +1,21 @@
-"""``sink.stream`` — re-publish processed frames as a derived video stream.
+"""``broadcast.stream`` — re-publish processed frames as a derived video stream.
 
-Drop one at the tail of an ``transform.annotate`` (or any frame-producing node)
+Drop one at the tail of a ``transform.annotate`` (or any frame-producing node)
 to surface that node's output in the dashboard alongside the raw camera tiles.
+
+In the node taxonomy this is a **broadcast**, not a sink: the data doesn't
+leave the platform — it gets re-published over a different transport
+(MediaMTX → WebRTC/HLS/RTSP) for many in-platform consumers. Compare to a
+true sink like ``sink.mqtt`` which terminates the pipeline by emitting bytes
+to an external system.
 
 Mechanism: each incoming :class:`Frame` is re-published to the :class:`FrameBus`
 under a derived id (``derived/<pipeline>/<node>``) and the same camera-streaming
 publisher path (GStreamer ``appsrc`` → H.264 → RTSP push to MediaMTX) is
 attached. The dashboard fetches the registry via ``/api/streams``.
+
+Was historically registered as ``sink.stream``; the legacy TYPE_ID is still
+accepted by the catalog loader for back-compat with saved pipelines.
 """
 
 from __future__ import annotations
@@ -22,9 +31,9 @@ from ...node import Inbox, Node, Outbox, Port
 log = logging.getLogger(__name__)
 
 
-class StreamSink(Node):
-    TYPE_ID = "sink.stream"
-    UI_CATEGORY = "sink"
+class StreamBroadcast(Node):
+    TYPE_ID = "broadcast.stream"
+    UI_CATEGORY = "broadcast"
     INPUTS = (Port("frame", PortType.FRAME),)
     OUTPUTS = ()
     CONFIG_SCHEMA = {
@@ -48,7 +57,6 @@ class StreamSink(Node):
         self._stream_id = f"derived/{self.context.pipeline_id}/{self.node_id}"
 
     async def teardown(self) -> None:
-        # Detach the publisher and unregister
         streaming = self.context.streaming
         registry = self.context.derived_streams
         if streaming is not None:
@@ -67,13 +75,11 @@ class StreamSink(Node):
             if frame is None:
                 continue
             if self._dims is None:
-                # First frame — fire off attach + register; subsequent frames flow normally
                 self._dims = (frame.width, frame.height)
                 self._attach_task = asyncio.create_task(
                     self._first_frame_setup(frame),
-                    name=f"sink.stream/{self._stream_id}/attach",
+                    name=f"broadcast.stream/{self._stream_id}/attach",
                 )
-            # Re-publish under the derived id so the streaming publisher picks it up
             self.context.frame_bus.publish_nowait(self._stream_id, frame)
 
     async def _first_frame_setup(self, frame: Frame) -> None:

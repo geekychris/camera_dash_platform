@@ -33,16 +33,20 @@ NVIDIA DGX Spark + CUDA: see [GPU notes](#gpu-deployments) below.
 ## Installer flags
 
 ```
-scripts/install-macos.sh             full install (recommended)
-scripts/install-macos.sh --core      skip ML deps (smaller, faster)
-scripts/install-macos.sh --no-mqtt   skip mosquitto MQTT broker
+scripts/install-macos.sh                full install (recommended)
+scripts/install-macos.sh --core         skip ML deps (smaller, faster)
+scripts/install-macos.sh --no-mqtt      skip mosquitto MQTT broker
+scripts/install-macos.sh --with-kinect  also install libfreenect + freenect wrapper (Kinect 360)
 
-scripts/install-linux.sh             full install
-scripts/install-linux.sh --core      skip ML deps
-scripts/install-linux.sh --rpi       Raspberry Pi profile
+scripts/install-linux.sh                full install
+scripts/install-linux.sh --core         skip ML deps
+scripts/install-linux.sh --rpi          Raspberry Pi profile
+scripts/install-linux.sh --with-kinect  also install libfreenect (Kinect 360)
 ```
 
 `--core` drops `torch`/`ultralytics`/`mediapipe`/`depthai`/`easyocr` — if you don't need YOLO/pose/OAK/OCR, the install is much smaller (~50MB vs ~3GB).
+
+`--with-kinect` runs `scripts/install-kinect-v1.sh`, which installs `libfreenect` (system lib) and builds the `freenect` Python wrapper into the backend venv. The Kinect driver imports lazily, so platforms without `freenect` keep working — you only need this if you actually plan to plug in a Kinect 360.
 
 ## What gets installed
 
@@ -97,6 +101,28 @@ Out of the box, the GroupGets PureThermal board outputs AGC (auto-gain-controlle
 ### 4. USB device-index isn't stable across replugs
 
 Always identify cameras by `device_name` (not `device_index`) in the params. The discover button in the Cameras tab shows you the names.
+
+### 5. Multi-FLIR (more than one identical PureThermal Lepton)
+
+macOS's AVFoundation refuses to start ISO streaming on more than one UVC camera that shares the same VID:PID model. With two or three PureThermals plugged in, only the first one streams; the rest silently fail at `set_state(PLAYING)`.
+
+`camera_dash` works around this by talking to USB directly via libuvc, which doesn't have the limit — but libuvc needs to override the kernel UVC claim (`VDCAssistant`), which requires **root**. To avoid running everything as root and to keep the dev loop fast, there's a small narrowly-scoped passwordless sudo setup:
+
+```bash
+# One-time: install /etc/sudoers.d/camera_dash_dev (scoped to two helper scripts only)
+sudo bash scripts/setup-passwordless-sudo.sh
+
+# From then on:
+./scripts/run.sh all --privileged       # starts backend as root (and frontend + mediamtx as user)
+./scripts/run.sh stop --privileged      # stops the root backend
+```
+
+Without `--privileged` everything still runs as the current user with the single-FLIR limit — that's the default. The sudoers entry only grants passwordless invocation of `scripts/_root-backend-start.sh` and `scripts/_root-backend-stop.sh`; nothing else gets elevated.
+
+Remove with:
+```bash
+sudo rm /etc/sudoers.d/camera_dash_dev
+```
 
 ## Linux-specific gotchas
 

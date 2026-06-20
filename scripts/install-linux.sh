@@ -7,9 +7,10 @@
 # Tested on: Ubuntu 22.04/24.04, Debian 12, Raspberry Pi OS, Fedora 40, Arch.
 #
 # Usage:
-#   sudo bash scripts/install-linux.sh           # full install
-#   sudo bash scripts/install-linux.sh --core    # skip ML deps (RPi-friendly)
-#   sudo bash scripts/install-linux.sh --rpi     # use camera_dash[rpi] extras
+#   sudo bash scripts/install-linux.sh                # full install
+#   sudo bash scripts/install-linux.sh --core         # skip ML deps (RPi-friendly)
+#   sudo bash scripts/install-linux.sh --rpi          # use camera_dash[rpi] extras
+#   sudo bash scripts/install-linux.sh --with-kinect  # also install libfreenect + freenect Python wrapper
 
 set -euo pipefail
 
@@ -18,11 +19,13 @@ cd "$REPO_ROOT"
 
 CORE_ONLY=false
 RPI=false
+WITH_KINECT=false
 for arg in "$@"; do
   case "$arg" in
     --core) CORE_ONLY=true ;;
     --rpi) RPI=true; CORE_ONLY=true ;;
-    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
+    --with-kinect) WITH_KINECT=true ;;
+    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
   esac
 done
 
@@ -140,6 +143,19 @@ fi
 # ---------- Frontend ----------
 log "Installing frontend node deps…"
 (cd frontend && npm install --silent --no-audit --no-fund)
+
+# ---------- Optional: Kinect 360 (v1) ----------
+if $WITH_KINECT; then
+  log "Installing libfreenect + freenect Python wrapper for Kinect 360 support…"
+  # install-kinect-v1.sh runs sudo as needed; drop privileges so the venv pip
+  # call stays as the real user.
+  REAL_USER="${SUDO_USER:-$USER}"
+  if [[ -n "$REAL_USER" && "$REAL_USER" != "root" ]]; then
+    sudo -u "$REAL_USER" bash scripts/install-kinect-v1.sh || warn "Kinect installer failed (continuing)"
+  else
+    bash scripts/install-kinect-v1.sh || warn "Kinect installer failed (continuing)"
+  fi
+fi
 
 # ---------- Allow user access to /dev/video* ----------
 if getent group video >/dev/null; then

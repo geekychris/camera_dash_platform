@@ -44,7 +44,23 @@ def _source_element(params: dict[str, Any]) -> str:
 
 
 def _resolve_index(params: dict[str, Any], default: int) -> int:
-    """If ``device_name`` is given, look it up via DeviceMonitor and return its index."""
+    """Pick a device index for the source element.
+
+    Resolution order:
+      1. ``device_index`` if explicitly set in ``params`` — wins over name
+         lookup so users with multiple identical devices (e.g. three
+         PureThermal/Leptons) can pin a specific one. ``device_index = 0``
+         counts as explicit only when the key is present in ``params``.
+      2. ``device_name`` looked up via GStreamer DeviceMonitor.
+      3. ``default`` (typically 0).
+    """
+    # Explicit index wins. Avoid the name lookup entirely — otherwise the
+    # first device matching the name pattern silently shadows the user's pick.
+    if "device_index" in params and params["device_index"] is not None:
+        try:
+            return int(params["device_index"])
+        except (TypeError, ValueError):
+            pass
     name = params.get("device_name")
     if not name:
         return int(params.get("device_index", default))

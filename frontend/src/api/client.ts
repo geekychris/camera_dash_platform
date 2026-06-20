@@ -5,6 +5,7 @@ export type CameraInfo = {
   params: Record<string, unknown>;
   running: boolean;
   is_thermal: boolean;
+  has_depth?: boolean;
   urls: { webrtc: string; hls: string; rtsp: string };
 };
 
@@ -59,7 +60,10 @@ export const api = {
   // cameras
   listCameras: () => fetch(`${API}/cameras`).then(jsonOrThrow<CameraInfo[]>),
   listStreams: () => fetch(`${API}/streams`).then(jsonOrThrow<DerivedStream[]>),
-  discoverCameras: () => fetch(`${API}/cameras/discover`).then(jsonOrThrow<{ uvc: { index: number; name: string }[] }>),
+  discoverCameras: () => fetch(`${API}/cameras/discover`).then(jsonOrThrow<{
+    uvc: { index: number; name: string }[];
+    kinect?: { index: number; name: string; serial?: string }[];
+  }>),
   addCamera: (c: Omit<CameraInfo, "running" | "is_thermal" | "urls"> & { enabled?: boolean }) =>
     fetch(`${API}/cameras`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: true, ...c }) }).then(jsonOrThrow<CameraInfo>),
   removeCamera: (id: string) => fetch(`${API}/cameras/${id}`, { method: "DELETE" }),
@@ -69,6 +73,10 @@ export const api = {
   // snapshots
   snapshot: (cameraId: string) =>
     fetch(`${API}/snapshots/${cameraId}`, { method: "POST" }).then(jsonOrThrow<{ id: string; path: string }>),
+
+  // per-camera restart — used after a hardware replug to drop the driver's stale handle
+  restartCamera: (cameraId: string) =>
+    fetch(`${API}/cameras/${cameraId}/restart`, { method: "POST" }).then(jsonOrThrow<CameraInfo>),
 
   // templates + draft (AI composer)
   listTemplates: () => fetch(`${API}/templates`).then(
@@ -119,6 +127,14 @@ export const api = {
   startPipeline: (id: string) => fetch(`${API}/pipelines/${id}/start`, { method: "POST" }).then(jsonOrThrow<PipelineDef>),
   stopPipeline: (id: string) => fetch(`${API}/pipelines/${id}/stop`, { method: "POST" }).then(jsonOrThrow<PipelineDef>),
   pipelineStatus: () => fetch(`${API}/pipelines/status`).then(jsonOrThrow<Record<string, unknown>>),
+  pipelineSourceCameras: (id: string) =>
+    fetch(`${API}/pipelines/${id}/source-cameras`).then(jsonOrThrow<string[]>),
+  clonePipeline: (
+    id: string,
+    body: { new_id: string; name?: string; camera_map?: Record<string, string>; enabled?: boolean },
+  ) => fetch(`${API}/pipelines/${id}/clone`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+  }).then(jsonOrThrow<PipelineDef>),
 
   // plugins
   catalog: () => fetch(`${API}/plugins`).then(jsonOrThrow<{ nodes: NodeDescriptor[] }>),
@@ -165,8 +181,24 @@ export function radiometricSubscribe(
   cameraId: string,
   onFrame: (w: number, h: number, data: Uint16Array) => void,
 ): () => void {
+  return _binaryMatrixSubscribe(`/api/radiometric/${cameraId}`, onFrame);
+}
+
+// Depth WS: same wire format as radiometric, but the matrix is millimetres
+// (uint16, 0 = invalid). Returns a teardown function.
+export function depthSubscribe(
+  cameraId: string,
+  onFrame: (w: number, h: number, data: Uint16Array) => void,
+): () => void {
+  return _binaryMatrixSubscribe(`/api/depth/${cameraId}`, onFrame);
+}
+
+function _binaryMatrixSubscribe(
+  path: string,
+  onFrame: (w: number, h: number, data: Uint16Array) => void,
+): () => void {
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  const ws = new WebSocket(`${proto}://${location.host}/api/radiometric/${cameraId}`);
+  const ws = new WebSocket(`${proto}://${location.host}${path}`);
   ws.binaryType = "arraybuffer";
   ws.onmessage = (ev) => {
     const buf = ev.data as ArrayBuffer;

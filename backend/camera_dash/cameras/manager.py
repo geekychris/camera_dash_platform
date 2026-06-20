@@ -16,6 +16,7 @@ from ..settings import Settings
 from ..streaming.frame_bus import FrameBus
 from .base import Camera, CameraSpec
 from .flir_lepton import FlirLeptonCamera
+from .kinect_v1 import KinectV1Camera
 from .oak import OakCamera
 from .rtsp import RtspCamera
 from .screen import ScreenCamera
@@ -31,6 +32,7 @@ _DRIVERS: dict[str, type[Camera]] = {
     "rtsp": RtspCamera,
     "screen": ScreenCamera,
     "oak": OakCamera,
+    "kinect_v1": KinectV1Camera,
 }
 
 
@@ -106,6 +108,42 @@ class CameraManager:
     @staticmethod
     def discover() -> list[dict[str, Any]]:
         return list_uvc_devices()
+
+    @staticmethod
+    def discover_kinects() -> list[dict[str, Any]]:
+        """Enumerate Kinect 360 (v1) devices via libfreenect.
+
+        Returns ``[{"index": i, "name": "Kinect 360 #<i>", "serial": "..."}]``
+        — libfreenect only exposes a count + per-device serials, no friendly
+        names — so we synthesize the name from the index.
+        """
+        try:
+            import freenect  # type: ignore
+        except ImportError:
+            return []
+        out: list[dict[str, Any]] = []
+        try:
+            ctx = freenect.init()
+            n = freenect.num_devices(ctx)
+            for i in range(n):
+                entry: dict[str, Any] = {"index": i, "name": f"Kinect 360 #{i}"}
+                try:
+                    dev = freenect.open_device(ctx, i)
+                    if dev is not None:
+                        serial = getattr(freenect, "camera_get_serial", lambda *_: None)(dev)
+                        if serial:
+                            entry["serial"] = str(serial)
+                        freenect.close_device(dev)
+                except Exception:  # pragma: no cover
+                    log.debug("kinect %d serial lookup failed", i, exc_info=True)
+                out.append(entry)
+            try:
+                freenect.shutdown(ctx)
+            except Exception:  # pragma: no cover
+                pass
+        except Exception:  # pragma: no cover
+            log.exception("kinect enumeration failed")
+        return out
 
     # ----- Persistence helpers -----
 

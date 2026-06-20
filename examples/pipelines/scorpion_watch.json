@@ -1,18 +1,28 @@
 {
   "id": "scorpion_watch",
-  "name": "YOLO-World on MacBook cam — open-vocab (scorpion, dog, drone)",
+  "name": "YOLO-World on MacBook cam \u2014 open-vocab (scorpion, dog, drone)",
   "nodes": [
     {
       "id": "src",
       "type": "source.camera",
-      "config": { "camera_id": "laptop" },
-      "position": { "x": 0, "y": 0 }
+      "config": {
+        "camera_id": "laptop"
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
     },
     {
       "id": "sampler",
       "type": "transform.frame_sample",
-      "config": { "target_fps": 2.0 },
-      "position": { "x": 120, "y": 0 }
+      "config": {
+        "target_fps": 2.0
+      },
+      "position": {
+        "x": 120,
+        "y": 0
+      }
     },
     {
       "id": "yw",
@@ -20,44 +30,102 @@
       "config": {
         "model": "yolov8l-worldv2.pt",
         "device": "mps",
-        "classes": ["person", "black scorpion", "dog", "drone"],
+        "classes": [
+          "person",
+          "black scorpion",
+          "dog",
+          "drone"
+        ],
         "conf": 0.1,
         "imgsz": 960
       },
-      "position": { "x": 240, "y": 0 }
+      "position": {
+        "x": 240,
+        "y": 0
+      }
     },
     {
       "id": "annot",
       "type": "transform.annotate",
-      "config": { "color": [255, 0, 255], "thickness": 2, "show_score": true },
-      "position": { "x": 480, "y": 0 }
+      "config": {
+        "color": [
+          255,
+          0,
+          255
+        ],
+        "thickness": 2,
+        "show_score": true
+      },
+      "position": {
+        "x": 480,
+        "y": 0
+      }
     },
     {
       "id": "stream",
-      "type": "sink.stream",
-      "config": { "label": "MBP + open-vocab", "fps": 10 },
-      "position": { "x": 720, "y": 0 }
+      "type": "broadcast.stream",
+      "config": {
+        "label": "MBP + open-vocab",
+        "fps": 10
+      },
+      "position": {
+        "x": 720,
+        "y": 0
+      }
     },
     {
       "id": "throttle",
       "type": "transform.throttle",
-      "config": { "interval_s": 5.0 },
-      "position": { "x": 480, "y": 160 }
+      "config": {
+        "interval_s": 5.0
+      },
+      "position": {
+        "x": 480,
+        "y": 160
+      }
     },
     {
       "id": "log",
       "type": "sink.console",
-      "config": { "level": "info", "format": "compact", "prefix": "[scorpion_watch] " },
-      "position": { "x": 720, "y": 160 }
+      "config": {
+        "level": "info",
+        "format": "compact",
+        "prefix": "[scorpion_watch] "
+      },
+      "position": {
+        "x": 720,
+        "y": 160
+      }
     }
   ],
   "edges": [
-    { "from": "src.frame",          "to": "sampler.frame" },
-    { "from": "sampler.frame",      "to": "yw.frame" },
-    { "from": "src.frame",          "to": "annot.frame" },
-    { "from": "yw.detections",      "to": "annot.detections" },
-    { "from": "annot.frame",        "to": "stream.frame" },
-    { "from": "yw.detections",      "to": "throttle.payload" },
-    { "from": "throttle.payload",   "to": "log.payload" }
+    {
+      "from": "src.frame",
+      "to": "sampler.frame"
+    },
+    {
+      "from": "sampler.frame",
+      "to": "yw.frame"
+    },
+    {
+      "from": "src.frame",
+      "to": "annot.frame"
+    },
+    {
+      "from": "yw.detections",
+      "to": "annot.detections"
+    },
+    {
+      "from": "annot.frame",
+      "to": "stream.frame"
+    },
+    {
+      "from": "yw.detections",
+      "to": "throttle.payload"
+    },
+    {
+      "from": "throttle.payload",
+      "to": "log.payload"
+    }
   ]
 }

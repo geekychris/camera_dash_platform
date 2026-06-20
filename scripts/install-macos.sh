@@ -12,9 +12,10 @@
 #   5. Installs frontend node deps
 #
 # Usage:
-#   bash scripts/install-macos.sh           # full install
-#   bash scripts/install-macos.sh --core    # skip ML deps (smaller, faster)
-#   bash scripts/install-macos.sh --no-mqtt # skip mosquitto
+#   bash scripts/install-macos.sh                # full install
+#   bash scripts/install-macos.sh --core         # skip ML deps (smaller, faster)
+#   bash scripts/install-macos.sh --no-mqtt      # skip mosquitto
+#   bash scripts/install-macos.sh --with-kinect  # also install libfreenect + freenect Python wrapper
 
 set -euo pipefail
 
@@ -23,11 +24,13 @@ cd "$REPO_ROOT"
 
 CORE_ONLY=false
 WITH_MQTT=true
+WITH_KINECT=false
 for arg in "$@"; do
   case "$arg" in
     --core) CORE_ONLY=true ;;
     --no-mqtt) WITH_MQTT=false ;;
-    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+    --with-kinect) WITH_KINECT=true ;;
+    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
   esac
 done
 
@@ -79,6 +82,12 @@ fi
 # ---------- Frontend ----------
 log "Installing frontend node deps…"
 (cd frontend && npm install --silent --no-audit --no-fund)
+
+# ---------- Optional: Kinect 360 (v1) ----------
+if $WITH_KINECT; then
+  log "Installing libfreenect + freenect Python wrapper for Kinect 360 support…"
+  bash scripts/install-kinect-v1.sh
+fi
 
 # ---------- Summary ----------
 cat <<EOF

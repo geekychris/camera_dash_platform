@@ -234,7 +234,7 @@ export default function Dashboard() {
             moveOrResize,
             t.kind === "camera"
               ? <CameraTile camera={t.data} />
-              : <CameraTile camera={derivedToCameraShim(t.data)} badge="derived" />,
+              : <CameraTile camera={derivedToCameraShim(t.data)} badge="derived" pipelineId={t.data.pipeline_id} />,
           ),
         )}
         {Object.entries(stored.logs).map(([uid, entry]) =>

@@ -1,0 +1,52 @@
+{
+  "id": "kinect_depth_view",
+  "name": "Kinect depth \u2014 colormapped derived stream",
+  "nodes": [
+    {
+      "id": "src",
+      "type": "source.camera_depth",
+      "config": {
+        "camera_id": "kinect"
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "color",
+      "type": "transform.depth_colormap",
+      "config": {
+        "near_mm": 500,
+        "far_mm": 4000,
+        "colormap": "turbo"
+      },
+      "position": {
+        "x": 240,
+        "y": 0
+      }
+    },
+    {
+      "id": "stream",
+      "type": "broadcast.stream",
+      "config": {
+        "label": "Kinect depth (turbo)",
+        "fps": 15
+      },
+      "position": {
+        "x": 480,
+        "y": 0
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "src.depth",
+      "to": "color.depth"
+    },
+    {
+      "from": "color.frame",
+      "to": "stream.frame"
+    }
+  ]
+}

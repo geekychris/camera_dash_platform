@@ -2,32 +2,105 @@
   "id": "wildlife_camera",
   "name": "Wildlife camera (open-vocab)",
   "nodes": [
-    { "id": "src", "type": "source.camera", "config": { "camera_id": "REPLACE_ME" } },
-    { "id": "yw", "type": "detector.yolo_world",
+    {
+      "id": "src",
+      "type": "source.camera",
+      "config": {
+        "camera_id": "REPLACE_ME"
+      }
+    },
+    {
+      "id": "yw",
+      "type": "detector.yolo_world",
       "config": {
         "model": "yolov8s-worldv2.pt",
         "device": "${profile.default_device}",
-        "classes": ["deer", "bird", "raccoon", "fox", "rabbit", "squirrel", "coyote"],
+        "classes": [
+          "deer",
+          "bird",
+          "raccoon",
+          "fox",
+          "rabbit",
+          "squirrel",
+          "coyote"
+        ],
         "conf": 0.06
-      } },
-    { "id": "annot", "type": "transform.annotate",
-      "config": { "color": [0, 255, 255], "thickness": 2, "show_score": true } },
-    { "id": "stream", "type": "sink.stream",
-      "config": { "label": "Wildlife + boxes", "fps": 10 } },
-    { "id": "cool", "type": "condition.cooldown",
-      "config": { "cooldown_s": 60, "scope": "per_camera_kind" } },
-    { "id": "rec", "type": "sink.recorder",
-      "config": { "pre_roll_s": 8, "post_roll_s": 30 } },
-    { "id": "log", "type": "sink.console",
-      "config": { "format": "compact", "prefix": "[wildlife] " } }
+      }
+    },
+    {
+      "id": "annot",
+      "type": "transform.annotate",
+      "config": {
+        "color": [
+          0,
+          255,
+          255
+        ],
+        "thickness": 2,
+        "show_score": true
+      }
+    },
+    {
+      "id": "stream",
+      "type": "broadcast.stream",
+      "config": {
+        "label": "Wildlife + boxes",
+        "fps": 10
+      }
+    },
+    {
+      "id": "cool",
+      "type": "condition.cooldown",
+      "config": {
+        "cooldown_s": 60,
+        "scope": "per_camera_kind"
+      }
+    },
+    {
+      "id": "rec",
+      "type": "sink.recorder",
+      "config": {
+        "pre_roll_s": 8,
+        "post_roll_s": 30
+      }
+    },
+    {
+      "id": "log",
+      "type": "sink.console",
+      "config": {
+        "format": "compact",
+        "prefix": "[wildlife] "
+      }
+    }
   ],
   "edges": [
-    { "from": "src.frame", "to": "yw.frame" },
-    { "from": "src.frame", "to": "annot.frame" },
-    { "from": "yw.detections", "to": "annot.detections" },
-    { "from": "annot.frame", "to": "stream.frame" },
-    { "from": "yw.detections", "to": "cool.payload" },
-    { "from": "cool.match", "to": "rec.trigger" },
-    { "from": "cool.match", "to": "log.payload" }
+    {
+      "from": "src.frame",
+      "to": "yw.frame"
+    },
+    {
+      "from": "src.frame",
+      "to": "annot.frame"
+    },
+    {
+      "from": "yw.detections",
+      "to": "annot.detections"
+    },
+    {
+      "from": "annot.frame",
+      "to": "stream.frame"
+    },
+    {
+      "from": "yw.detections",
+      "to": "cool.payload"
+    },
+    {
+      "from": "cool.match",
+      "to": "rec.trigger"
+    },
+    {
+      "from": "cool.match",
+      "to": "log.payload"
+    }
   ]
 }
