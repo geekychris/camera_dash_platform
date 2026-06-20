@@ -96,13 +96,17 @@ install_mediamtx_binary() {
   ARCH="$(uname -m)"
   case "$ARCH" in
     x86_64) MTX_ARCH=amd64 ;;
-    aarch64|arm64) MTX_ARCH=arm64v8 ;;
+    # MediaMTX renamed the aarch64 release asset around v1.19 — used to be
+    # "arm64v8" but is now just "arm64". The api.github.com path is also
+    # rate-limited; resolve the latest tag via redirect instead.
+    aarch64|arm64) MTX_ARCH=arm64 ;;
     armv7l) MTX_ARCH=armv7 ;;
     *) err "Unsupported arch $ARCH for MediaMTX prebuilt"; return 1 ;;
   esac
-  URL=$(curl -s https://api.github.com/repos/bluenviron/mediamtx/releases/latest \
-        | grep -oE "https://[^\"]+_linux_${MTX_ARCH}\.tar\.gz" | head -1)
-  if [[ -z "$URL" ]]; then err "Could not find MediaMTX release"; return 1; fi
+  VER=$(curl -sSL -o /dev/null -w "%{url_effective}" "https://github.com/bluenviron/mediamtx/releases/latest" \
+        | sed -E 's|.*/tag/(v[0-9.]+).*|\1|')
+  if [[ -z "$VER" || "$VER" == https* ]]; then err "Could not resolve MediaMTX latest version"; return 1; fi
+  URL="https://github.com/bluenviron/mediamtx/releases/download/${VER}/mediamtx_${VER}_linux_${MTX_ARCH}.tar.gz"
   TMP="$(mktemp -d)"
   curl -sL "$URL" | tar -xz -C "$TMP"
   install -m755 "$TMP/mediamtx" /usr/local/bin/mediamtx

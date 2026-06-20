@@ -65,9 +65,12 @@ mac = [
 
 rpi = [
   "camera_dash[thermal]",
-  # Inference on Pi uses tflite-runtime + onnxruntime CPU
+  # Inference on Pi uses tflite-runtime + onnxruntime CPU. tflite-runtime
+  # only ships wheels up to Python 3.12 as of writing; on 3.13 (Pi OS
+  # Trixie default) it's silently skipped, and onnxruntime carries the
+  # inference load. Add tflite-runtime by hand once Google publishes 3.13.
   "onnxruntime>=1.20",
-  "tflite-runtime>=2.14; platform_machine=='aarch64'",
+  "tflite-runtime>=2.14; platform_machine=='aarch64' and python_version<'3.13'",
   # picamera2 only available on Pi via apt; install separately
 ]
 
