@@ -14,12 +14,24 @@ const PORT_COLOR: Record<string, string> = {
   trigger: "#ef4444",
 };
 
+// What a given TYPE_ID surfaces in the dashboard. Used to render a small
+// glyph in the node corner so you can scan a graph and immediately see
+// "which of these will I be able to see/click on in the dashboard tile
+// grid". Add to this map when new visible-surface nodes ship.
+const DASHBOARD_SURFACE: Record<string, { icon: string; tip: string }> = {
+  "broadcast.stream":   { icon: "🖥️", tip: "Produces a derived video tile on the dashboard" },
+  "broadcast.snapshot": { icon: "🖼️", tip: "Latest-frame JPEG at /api/broadcast/snapshot/<id>.jpg" },
+  "sink.recorder":      { icon: "💾", tip: "Saved clips show up in the Clips browser" },
+  "sink.console":       { icon: "📜", tip: "Appears in console + the dashboard log tile" },
+};
+
 export default function PipelineNode({ data }: NodeProps) {
   const d = data as Data;
   const desc = d.descriptor;
   const inputs = desc?.inputs ?? [];
   const outputs = desc?.outputs ?? [];
   const meta = metaFor(desc?.category);
+  const surface = DASHBOARD_SURFACE[d.type];
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
 
   return (
@@ -29,6 +41,16 @@ export default function PipelineNode({ data }: NodeProps) {
         onMouseEnter={(e) => setAnchor((e.currentTarget as HTMLDivElement).getBoundingClientRect())}
         onMouseLeave={() => setAnchor(null)}
       >
+        {/* Top-right badge — flags nodes whose output is visible/audible on
+            the dashboard. Tooltip explains exactly what it surfaces. */}
+        {surface && (
+          <span
+            className="absolute -top-2 -right-2 rounded-full border border-slate-700 bg-slate-900 px-1 text-xs leading-tight"
+            title={surface.tip}
+          >
+            {surface.icon}
+          </span>
+        )}
         <div className="flex items-center gap-1.5 font-semibold">
           <span className="text-sm leading-none" title={meta.label}>{meta.icon}</span>
           <span className="truncate">{d.type}</span>

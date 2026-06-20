@@ -39,10 +39,15 @@ export default function SchemaForm({
   schema,
   value,
   onChange,
+  enumOverrides,
 }: {
   schema: Schema;
   value: Record<string, Json>;
   onChange: (next: Record<string, Json>) => void;
+  /** Render a select for any property whose name matches a key here.
+   *  Useful for fields like `camera_id` that should choose from a live set
+   *  rather than free-text. The override wins over the schema's own enum. */
+  enumOverrides?: Record<string, string[]>;
 }) {
   const props = schema.properties ?? {};
   const required = useMemo(() => new Set(schema.required ?? []), [schema.required]);
@@ -59,6 +64,7 @@ export default function SchemaForm({
           required={required.has(name)}
           value={value[name]}
           onChange={(v) => onChange({ ...value, [name]: v })}
+          override={enumOverrides?.[name]}
         />
       ))}
     </div>
@@ -66,13 +72,14 @@ export default function SchemaForm({
 }
 
 function Field({
-  name, prop, required, value, onChange,
+  name, prop, required, value, onChange, override,
 }: {
   name: string;
   prop: Property;
   required: boolean;
   value: Json;
   onChange: (v: Json) => void;
+  override?: string[];
 }) {
   const effective = value === undefined ? prop.default : value;
   const error = validate(prop, effective, required);
@@ -89,7 +96,7 @@ function Field({
         )}
       </label>
 
-      {renderInput(prop, type, effective, onChange)}
+      {renderInput(prop, type, effective, onChange, override)}
 
       {prop.description && (
         <div className="mt-1 text-[11px] leading-snug text-slate-500">{prop.description}</div>
@@ -101,7 +108,42 @@ function Field({
   );
 }
 
-function renderInput(prop: Property, type: string, value: Json, onChange: (v: Json) => void) {
+function renderInput(prop: Property, type: string, value: Json, onChange: (v: Json) => void, override?: string[]) {
+  // Caller-supplied override (e.g. live camera list for `camera_id`).
+  // Wins over the schema's `enum` so users always see the actual set of
+  // things they can pick from instead of typing a string and hoping it
+  // matches. Still allow a free-text escape hatch: an empty selection
+  // falls back to manual input.
+  if (override && Array.isArray(override)) {
+    const known = new Set(override);
+    const current = String(value ?? "");
+    return (
+      <div className="space-y-1">
+        <select
+          className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100"
+          value={known.has(current) ? current : "__custom__"}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === "__custom__") return; // keep current; text input handles it
+            onChange(coerce(v, type));
+          }}
+        >
+          {override.length === 0 && <option value="">— none available —</option>}
+          {override.map((v) => <option key={v} value={v}>{v}</option>)}
+          <option value="__custom__">Custom value…</option>
+        </select>
+        {!known.has(current) && current !== "" && (
+          <input
+            type="text"
+            className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-300"
+            value={current}
+            placeholder="custom id (not in the list)"
+            onChange={(e) => onChange(e.target.value)}
+          />
+        )}
+      </div>
+    );
+  }
   // enum → select (works for any base type)
   if (prop.enum && Array.isArray(prop.enum)) {
     return (
