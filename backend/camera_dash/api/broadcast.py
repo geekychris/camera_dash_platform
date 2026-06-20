@@ -23,6 +23,7 @@ async def list_snapshots(request: Request) -> list[dict]:
         out.append({
             "id": e.id, "pipeline_id": e.pipeline_id, "node_id": e.node_id,
             "label": e.label, "width": e.width, "height": e.height,
+            "source_camera_id": e.source_camera_id,
             "updated_at": e.updated_at,
             "url": f"/api/broadcast/snapshot/{e.id}.jpg",
         })

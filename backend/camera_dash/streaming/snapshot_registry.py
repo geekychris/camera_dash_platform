@@ -23,6 +23,11 @@ class SnapshotEntry:
     width: int
     height: int
     jpeg: bytes
+    # Source camera the input frame came from. Lets the dashboard render
+    # a "from <cam>" badge on the snapshot tile so users can trace each
+    # tile back to its raw source without opening the editor. Left None
+    # if the producing frame had no camera_id attached.
+    source_camera_id: str | None = None
     updated_at: float = field(default_factory=time.time)
     metadata: dict[str, Any] = field(default_factory=dict)
 

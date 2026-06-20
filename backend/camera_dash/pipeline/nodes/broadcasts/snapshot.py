@@ -106,6 +106,7 @@ class SnapshotBroadcast(Node):
             width=int(img.shape[1]),
             height=int(img.shape[0]),
             jpeg=bytes(buf),
+            source_camera_id=frame.camera_id,
         )
         await reg.update(entry)
         if not self._registered:

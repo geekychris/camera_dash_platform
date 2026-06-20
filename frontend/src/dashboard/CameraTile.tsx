@@ -10,10 +10,15 @@ export default function CameraTile({
   camera,
   badge,
   pipelineId,
+  sourceCameraId,
 }: {
   camera: CameraInfo;
   badge?: string;
   pipelineId?: string;
+  /** For derived/snapshot tiles: the upstream camera id the pipeline reads
+   *  from. Rendered as a small "from <cam>" badge so users can trace each
+   *  tile back to its raw source without opening the editor. */
+  sourceCameraId?: string | null;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -109,6 +114,14 @@ export default function CameraTile({
             </span>
           )}
           <span className="truncate">{camera.label || camera.id}</span>
+          {sourceCameraId && (
+            <span
+              className="rounded border border-slate-700 bg-slate-900 px-1.5 py-px text-[10px] uppercase tracking-wide text-slate-400"
+              title={`Derived from camera ${sourceCameraId}`}
+            >
+              from <span className="font-mono text-amber-300">{sourceCameraId}</span>
+            </span>
+          )}
         </span>
         <span className="ml-2 flex shrink-0 items-center gap-1 text-slate-500">
           <span>{Math.round(zoom * 100)}%</span>

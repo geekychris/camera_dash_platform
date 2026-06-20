@@ -238,7 +238,7 @@ export default function Dashboard() {
             t.kind === "camera"
               ? <CameraTile camera={t.data} />
               : t.kind === "derived"
-                ? <CameraTile camera={derivedToCameraShim(t.data)} badge="derived" pipelineId={t.data.pipeline_id} />
+                ? <CameraTile camera={derivedToCameraShim(t.data)} badge="derived" pipelineId={t.data.pipeline_id} sourceCameraId={t.data.source_camera_id} />
                 : <SnapshotTile info={t.data} />,
           ),
         )}

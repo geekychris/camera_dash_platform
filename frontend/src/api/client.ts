@@ -29,6 +29,7 @@ export type SnapshotInfo = {
   label: string;
   width: number;
   height: number;
+  source_camera_id: string | null;
   updated_at: number;
   url: string;
 };

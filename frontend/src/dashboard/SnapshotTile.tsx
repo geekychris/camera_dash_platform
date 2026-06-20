@@ -27,6 +27,14 @@ export default function SnapshotTile({ info }: { info: SnapshotInfo }) {
             snapshot
           </span>
           <span className="truncate">{info.label || info.id}</span>
+          {info.source_camera_id && (
+            <span
+              className="rounded border border-slate-700 bg-slate-900 px-1.5 py-px text-[10px] uppercase tracking-wide text-slate-400"
+              title={`Derived from camera ${info.source_camera_id}`}
+            >
+              from <span className="font-mono text-amber-300">{info.source_camera_id}</span>
+            </span>
+          )}
         </span>
         <span className="ml-2 flex shrink-0 items-center gap-1 text-slate-500">
           <span>{info.width}×{info.height}</span>
