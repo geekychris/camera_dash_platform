@@ -32,13 +32,34 @@ class CameraOut(BaseModel):
     urls: dict[str, str]
 
 
+def _client_host(request: Request) -> str | None:
+    """Best-effort: what hostname did the dashboard use to reach us?
+
+    Vite's dev-proxy strips the LAN hostname when `changeOrigin: true` and
+    rewrites `Host: localhost:8001` for the upstream. With `xfwd: true` on
+    the same proxy, the original host comes back in `X-Forwarded-Host`.
+    Prefer that; fall back to `Host`; final fallback is the request URL.
+    """
+    fwd = request.headers.get("x-forwarded-host")
+    if fwd:
+        # Comma-separated list; first entry is the original client.
+        host = fwd.split(",", 1)[0].strip()
+    else:
+        host = request.headers.get("host") or request.url.hostname or ""
+    # Strip the port — we always want just the bare hostname here.
+    if ":" in host:
+        host = host.rsplit(":", 1)[0]
+    return host or None
+
+
 def _enrich(info: dict[str, Any], request: Request) -> CameraOut:
     settings = request.app.state.settings
+    host = _client_host(request)
     info = dict(info)
     info["urls"] = {
-        "webrtc": webrtc_url(settings, info["id"]),
-        "hls": hls_url(settings, info["id"]),
-        "rtsp": rtsp_url(settings, info["id"]),
+        "webrtc": webrtc_url(settings, info["id"], host),
+        "hls": hls_url(settings, info["id"], host),
+        "rtsp": rtsp_url(settings, info["id"], host),
     }
     return CameraOut(**info)
 
