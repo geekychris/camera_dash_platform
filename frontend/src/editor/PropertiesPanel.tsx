@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Node } from "@xyflow/react";
 import { api, NodeDescriptor } from "../api/client";
 import { metaFor } from "./categoryMeta";
+import MarkdownLite from "./MarkdownLite";
 import SchemaForm, { Schema } from "./SchemaForm";
 
 type NodeData = { type: string; config: Record<string, unknown>; descriptor?: NodeDescriptor };
@@ -57,9 +58,10 @@ export default function PropertiesPanel({
           enumOverrides={enumOverrides}
         />
         {data.descriptor?.doc && (
-          <div className="mt-4 border-t border-slate-800 pt-3 text-[11px] leading-snug text-slate-400 whitespace-pre-wrap">
-            {data.descriptor.doc}
-          </div>
+          <MarkdownLite
+            source={data.descriptor.doc}
+            className="mt-4 space-y-2 border-t border-slate-800 pt-3 text-[11px] text-slate-400"
+          />
         )}
       </div>
     </div>

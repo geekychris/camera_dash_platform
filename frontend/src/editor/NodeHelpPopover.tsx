@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { NodeDescriptor } from "../api/client";
+import MarkdownLite from "./MarkdownLite";
 
 type SchemaProp = { type?: string; description?: string; default?: unknown; enum?: unknown[] };
 type Schema = { properties?: Record<string, SchemaProp>; required?: string[] };
@@ -51,7 +52,7 @@ export default function NodeHelpPopover({
     >
       <div className="mb-1 font-mono text-sm font-semibold text-violet-300">{descriptor.type_id}</div>
       {descriptor.doc ? (
-        <div className="mb-2 whitespace-pre-wrap text-slate-300">{descriptor.doc}</div>
+        <MarkdownLite source={descriptor.doc} className="mb-2 space-y-2 text-slate-300" />
       ) : (
         <div className="mb-2 italic text-slate-500">No description.</div>
       )}

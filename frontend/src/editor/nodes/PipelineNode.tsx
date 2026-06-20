@@ -19,10 +19,10 @@ const PORT_COLOR: Record<string, string> = {
 // "which of these will I be able to see/click on in the dashboard tile
 // grid". Add to this map when new visible-surface nodes ship.
 const DASHBOARD_SURFACE: Record<string, { icon: string; tip: string }> = {
-  "broadcast.stream":   { icon: "🖥️", tip: "Produces a derived video tile on the dashboard" },
-  "broadcast.snapshot": { icon: "🖼️", tip: "Latest-frame JPEG at /api/broadcast/snapshot/<id>.jpg" },
+  "broadcast.stream":   { icon: "🖥️", tip: "Produces a live-video tile on the Dashboard tab" },
+  "broadcast.snapshot": { icon: "🖼️", tip: "Produces an auto-refreshing JPEG tile on the Dashboard tab; also served as /api/broadcast/snapshot/<id>.jpg" },
   "sink.recorder":      { icon: "💾", tip: "Saved clips show up in the Clips browser" },
-  "sink.console":       { icon: "📜", tip: "Appears in console + the dashboard log tile" },
+  "sink.console":       { icon: "📜", tip: "Feeds the Dashboard log tile (and the systemd journal)" },
 };
 
 export default function PipelineNode({ data }: NodeProps) {

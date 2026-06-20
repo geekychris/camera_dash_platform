@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Rnd } from "react-rnd";
-import { api, CameraInfo, DerivedStream, Tile } from "../api/client";
+import { api, CameraInfo, DerivedStream, SnapshotInfo, Tile } from "../api/client";
 import CameraTile from "./CameraTile";
 import LogTile, { LogConfig } from "./LogTile";
 import AlertTile, { AlertConfig } from "./AlertTile";
+import SnapshotTile from "./SnapshotTile";
 import StatsTile from "./StatsTile";
 import TimelineTile from "./TimelineTile";
 
@@ -54,14 +55,16 @@ export default function Dashboard() {
   useEffect(() => {
     let cancelled = false;
     async function refresh() {
-      const [cams, streams] = await Promise.all([
+      const [cams, streams, snaps] = await Promise.all([
         api.listCameras().catch(() => [] as CameraInfo[]),
         api.listStreams().catch(() => [] as DerivedStream[]),
+        api.listSnapshots().catch(() => [] as SnapshotInfo[]),
       ]);
       if (cancelled) return;
       setTiles([
         ...cams.map((c): Tile => ({ kind: "camera", data: c })),
         ...streams.map((s): Tile => ({ kind: "derived", data: s })),
+        ...snaps.map((s): Tile => ({ kind: "snapshot", data: s })),
       ]);
     }
     refresh();
@@ -234,7 +237,9 @@ export default function Dashboard() {
             moveOrResize,
             t.kind === "camera"
               ? <CameraTile camera={t.data} />
-              : <CameraTile camera={derivedToCameraShim(t.data)} badge="derived" pipelineId={t.data.pipeline_id} />,
+              : t.kind === "derived"
+                ? <CameraTile camera={derivedToCameraShim(t.data)} badge="derived" pipelineId={t.data.pipeline_id} />
+                : <SnapshotTile info={t.data} />,
           ),
         )}
         {Object.entries(stored.logs).map(([uid, entry]) =>

@@ -22,9 +22,21 @@ export type DerivedStream = {
   urls: { webrtc: string; hls: string; rtsp: string };
 };
 
+export type SnapshotInfo = {
+  id: string;
+  pipeline_id: string;
+  node_id: string;
+  label: string;
+  width: number;
+  height: number;
+  updated_at: number;
+  url: string;
+};
+
 export type Tile =
   | { kind: "camera"; data: CameraInfo }
-  | { kind: "derived"; data: DerivedStream };
+  | { kind: "derived"; data: DerivedStream }
+  | { kind: "snapshot"; data: SnapshotInfo };
 
 export type PipelineDef = {
   id: string;
@@ -60,6 +72,7 @@ export const api = {
   // cameras
   listCameras: () => fetch(`${API}/cameras`).then(jsonOrThrow<CameraInfo[]>),
   listStreams: () => fetch(`${API}/streams`).then(jsonOrThrow<DerivedStream[]>),
+  listSnapshots: () => fetch(`${API}/broadcast/snapshot`).then(jsonOrThrow<SnapshotInfo[]>),
   discoverCameras: () => fetch(`${API}/cameras/discover`).then(jsonOrThrow<{
     uvc: { index: number; name: string; device?: string }[];
     kinect?: { index: number; name: string; serial?: string }[];
