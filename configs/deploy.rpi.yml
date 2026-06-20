@@ -18,6 +18,8 @@ streaming:
 
 server:
   host: 0.0.0.0
-  port: 8000
+  port: 8001
+  # CORS is for the Vite dev server's browser. Add your LAN hostname here
+  # when accessing from another machine, e.g. http://pi5-8.local:5173.
   cors_origins:
     - http://localhost:5173
