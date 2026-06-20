@@ -60,15 +60,35 @@ async def upsert_pipeline(pid: str, payload: PipelineIn, request: Request) -> Pi
     if pid != payload.id:
         raise HTTPException(400, "URL id != body id")
     catalog = request.app.state.catalog
+    engine = request.app.state.engine
     try:
-        Graph.from_json(payload.definition, catalog=catalog)
+        graph = Graph.from_json(payload.definition, catalog=catalog)
     except (GraphError, KeyError, ValueError) as exc:
         raise HTTPException(400, f"invalid graph: {exc}") from exc
+
+    # Was it running with the old definition? If so we restart it with the
+    # new one after persisting — otherwise the editor's "Save" silently
+    # leaves the in-memory engine on the stale graph and the dashboard's
+    # output doesn't reflect the user's edits until they manually Stop+Start.
+    was_running = pid in engine.status()
+
     async with get_session() as s:
         row = await models.Pipeline.upsert(s, pid, payload.name or pid,
                                            payload.definition, payload.enabled)
         await s.commit()
         await s.refresh(row)
+
+    if was_running:
+        # start_pipeline already stops the previous run, so a single call is
+        # enough — and it leaves the camera/event/streaming wiring intact.
+        await engine.start_pipeline(graph)
+        # Reflect the runtime state in the persisted enabled flag.
+        async with get_session() as s:
+            row = await s.get(models.Pipeline, pid)
+            if row is not None:
+                row.enabled = True
+                await s.commit()
+                await s.refresh(row)
     return _row_out(row)
 
 
