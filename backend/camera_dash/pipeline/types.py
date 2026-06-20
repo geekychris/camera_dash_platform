@@ -95,6 +95,27 @@ class DetectionSet:
 
 
 @dataclass(slots=True)
+class AudioFrame:
+    """A chunk of mono PCM audio from a microphone or audio-capable camera.
+
+    ``data`` is a 1-D ``float32`` array, ``-1.0..+1.0`` range. Length depends
+    on the source's chunk size, but most YAMNet-style classifiers want a
+    fixed analysis window (typically 0.96s of 16kHz audio = 15360 samples).
+    Downstream nodes should resample / buffer as needed.
+    """
+
+    camera_id: str          # The source camera/mic id; reuses camera_id for FrameBus routing.
+    timestamp_ns: int
+    sample_rate: int        # samples per second (e.g. 16000, 44100, 48000)
+    data: np.ndarray        # shape (N,), float32 in [-1.0, +1.0]
+    channels: int = 1
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def duration_s(self) -> float:
+        return float(len(self.data)) / float(self.sample_rate or 1)
+
+
+@dataclass(slots=True)
 class Event:
     """Generic event flowing toward sinks (MQTT, Kafka, etc.)."""
 
@@ -111,6 +132,7 @@ class PortType(StrEnum):
 
     FRAME = "frame"             # drop-oldest, very small queue (live video)
     DEPTH_FRAME = "depth_frame"  # drop-oldest, parallel depth stream from Kinect/OAK
+    AUDIO_FRAME = "audio_frame"  # keep small history (ring) — audio classification needs context
     DETECTIONS = "detections"   # small queue, drop-oldest
     EVENT = "event"             # keep all, never drop (alerts)
     TRIGGER = "trigger"         # boolean/payload pulses, keep all
@@ -119,6 +141,7 @@ class PortType(StrEnum):
 PORT_TYPE_QUEUE_DEPTH = {
     PortType.FRAME: 2,
     PortType.DEPTH_FRAME: 2,
+    PortType.AUDIO_FRAME: 8,    # buffer ~8 chunks so a classifier with 0.96s windows survives a slow tick
     PortType.DETECTIONS: 4,
     PortType.EVENT: 256,
     PortType.TRIGGER: 64,
@@ -127,6 +150,7 @@ PORT_TYPE_QUEUE_DEPTH = {
 PORT_TYPE_DROP_OLDEST = {
     PortType.FRAME: True,
     PortType.DEPTH_FRAME: True,
+    PortType.AUDIO_FRAME: True,
     PortType.DETECTIONS: True,
     PortType.EVENT: False,
     PortType.TRIGGER: False,

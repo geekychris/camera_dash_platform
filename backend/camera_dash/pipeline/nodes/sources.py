@@ -7,10 +7,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from typing import Any
 
 import cv2
+import numpy as np
 
-from ...pipeline.types import Frame, PixelFormat
+from ...pipeline.types import AudioFrame, Frame, PixelFormat
 from ..node import Inbox, Node, Outbox, Port
 from ..types import PortType
 
@@ -127,3 +129,94 @@ class FileSourceNode(Node):
                 cap.release()
             if not loop:
                 return
+
+
+class AudioSourceNode(Node):
+    """Microphone source — capture PCM audio and publish as ``AudioFrame``.
+
+    Uses ``sounddevice`` (PortAudio) so we don't have to fight with ALSA /
+    PulseAudio / CoreAudio backends directly. Each chunk fires onto the
+    FrameBus's audio channel under the configured ``camera_id`` (the channel
+    is keyed by camera id so audio + video from the same physical camera
+    share the routing key).
+
+    Pairs with ``detector.audio_class`` (YAMNet) or any custom node that
+    consumes ``PortType.AUDIO_FRAME``.
+
+    Defaults to system default input, 16 kHz mono, 0.5 s chunks — matches
+    the standard YAMNet input cadence.
+    """
+
+    TYPE_ID = "source.audio"
+    UI_CATEGORY = "source"
+    INPUTS = ()
+    OUTPUTS = (Port("audio", PortType.AUDIO_FRAME),)
+    CONFIG_SCHEMA = {
+        "type": "object",
+        "properties": {
+            "camera_id": {
+                "type": "string", "default": "mic",
+                "description": "Bus routing key; reuses camera_id so an audio source pairs with a video camera by id",
+            },
+            "device": {
+                "type": ["integer", "string"], "default": -1,
+                "description": "sounddevice device index or substring of name; -1 = default input",
+            },
+            "sample_rate": {"type": "integer", "default": 16000,
+                              "description": "Hz — YAMNet expects 16000"},
+            "chunk_ms": {"type": "integer", "default": 500, "minimum": 50, "maximum": 5000,
+                          "description": "Chunk size in milliseconds. Smaller = lower latency."},
+            "channels": {"type": "integer", "enum": [1, 2], "default": 1},
+        },
+    }
+
+    async def run(self, inbox: Inbox, outbox: Outbox) -> None:
+        try:
+            import sounddevice as sd  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError(
+                "source.audio needs `sounddevice` — install with `pip install sounddevice`. "
+                "On Linux you also need libportaudio2 (apt install libportaudio2)."
+            ) from exc
+
+        camera_id = str(self.config.get("camera_id", "mic"))
+        sample_rate = int(self.config.get("sample_rate", 16000))
+        chunk_samples = int(sample_rate * int(self.config.get("chunk_ms", 500)) / 1000)
+        channels = int(self.config.get("channels", 1))
+        device: Any = self.config.get("device", -1)
+        if isinstance(device, str) and device.isdigit():
+            device = int(device)
+        if isinstance(device, int) and device < 0:
+            device = None
+
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue[np.ndarray] = asyncio.Queue(maxsize=16)
+
+        def callback(indata, frames, time_info, status):  # type: ignore[no-untyped-def]
+            if status:
+                log.warning("source.audio status: %s", status)
+            mono = indata.mean(axis=1) if indata.shape[1] > 1 else indata[:, 0]
+            loop.call_soon_threadsafe(queue.put_nowait, mono.astype(np.float32).copy())
+
+        stream = sd.InputStream(
+            samplerate=sample_rate, channels=channels, dtype="float32",
+            blocksize=chunk_samples, device=device, callback=callback,
+        )
+        try:
+            stream.start()
+            log.info("source.audio capturing on %s @ %d Hz, %d ms chunks (camera_id=%s)",
+                     device if device is not None else "default", sample_rate,
+                     int(self.config.get("chunk_ms", 500)), camera_id)
+            while True:
+                chunk = await queue.get()
+                af = AudioFrame(
+                    camera_id=camera_id, timestamp_ns=time.time_ns(),
+                    sample_rate=sample_rate, data=chunk, channels=channels,
+                )
+                bus = self.context.frame_bus
+                if bus is not None:
+                    bus.publish_audio_nowait(camera_id, af)
+                await outbox.publish({"audio": af})
+        finally:
+            stream.stop()
+            stream.close()

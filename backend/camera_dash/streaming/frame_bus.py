@@ -13,13 +13,14 @@ import time
 from collections import defaultdict, deque
 from collections.abc import AsyncIterator
 
-from ..pipeline.types import DepthFrame, Frame
+from ..pipeline.types import AudioFrame, DepthFrame, Frame
 
 
 class FrameBus:
     def __init__(self) -> None:
         self._subscribers: dict[str, list[asyncio.Queue[Frame]]] = defaultdict(list)
         self._depth_subscribers: dict[str, list[asyncio.Queue[DepthFrame]]] = defaultdict(list)
+        self._audio_subscribers: dict[str, list[asyncio.Queue[AudioFrame]]] = defaultdict(list)
         self._lock = asyncio.Lock()
         # Rolling window of publish timestamps per camera for fps calc.
         self._timestamps: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=60))
@@ -89,3 +90,28 @@ class FrameBus:
 
     def has_depth_subscribers(self, camera_id: str) -> bool:
         return bool(self._depth_subscribers.get(camera_id))
+
+    # ----- Audio channel (parallel to the color + depth channels) -------------
+    # Audio sources (microphones, audio-capable cameras) publish here; new
+    # source.audio / detector.audio_class nodes subscribe.
+
+    async def subscribe_audio(self, camera_id: str, depth: int = 8) -> asyncio.Queue[AudioFrame]:
+        q: asyncio.Queue[AudioFrame] = asyncio.Queue(maxsize=depth)
+        async with self._lock:
+            self._audio_subscribers[camera_id].append(q)
+        return q
+
+    async def unsubscribe_audio(self, camera_id: str, q: asyncio.Queue[AudioFrame]) -> None:
+        async with self._lock:
+            with contextlib.suppress(ValueError):
+                self._audio_subscribers[camera_id].remove(q)
+
+    def publish_audio_nowait(self, camera_id: str, frame: AudioFrame) -> None:
+        for q in self._audio_subscribers.get(camera_id, ()):
+            if q.full():
+                with contextlib.suppress(asyncio.QueueEmpty):
+                    q.get_nowait()
+            q.put_nowait(frame)
+
+    def has_audio_subscribers(self, camera_id: str) -> bool:
+        return bool(self._audio_subscribers.get(camera_id))
