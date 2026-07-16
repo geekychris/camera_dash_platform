@@ -20,7 +20,9 @@ import { api, NodeDescriptor, PipelineDef } from "../api/client";
 import NodePalette from "./NodePalette";
 import PropertiesPanel from "./PropertiesPanel";
 import PipelineNode from "./nodes/PipelineNode";
+import RecipesModal from "./RecipesModal";
 import { describeGraph, layoutGraph, renderInlineMarkdown } from "./graphUtils";
+import type { RecipeEdge, RecipeNode } from "./recipes";
 
 const nodeTypes = { pipeline: PipelineNode };
 
@@ -42,6 +44,7 @@ function EditorBody() {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [recipesOpen, setRecipesOpen] = useState(false);
   const rf = useReactFlow();
   const idCounter = useRef(0);
 
@@ -102,6 +105,56 @@ function EditorBody() {
   function updateConfig(nodeId: string, config: Record<string, unknown>) {
     setNodes((n) => n.map((node) => (node.id === nodeId ? { ...node, data: { ...node.data, config } } : node)));
   }
+
+  function insertRecipe(chunk: { nodes: RecipeNode[]; edges: RecipeEdge[] }) {
+    const desc = (t: string) => catalog.find((c) => c.type_id === t);
+    const centre = rf.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+    // Lay the recipe out in a vertical strip near the viewport centre. Auto-
+    // layout runs after to align it with the existing graph horizontally.
+    const newNodes: Node[] = chunk.nodes.map((n, i) => ({
+      id: n.id,
+      type: "pipeline",
+      position: { x: centre.x, y: centre.y + i * 90 },
+      data: { type: n.type, config: n.config, descriptor: desc(n.type) },
+    }));
+    const newEdges: Edge[] = chunk.edges.map((e, i) => {
+      const [fn, fp] = e.from.split(".", 2);
+      const [tn, tp] = e.to.split(".", 2);
+      return { id: `e-${Date.now()}-${i}`, source: fn, sourceHandle: fp, target: tn, targetHandle: tp };
+    });
+    setNodes((n) => [...n, ...newNodes]);
+    setEdges((e) => [...e, ...newEdges]);
+    // Defer to next tick so React applies the state, then re-flow + fit.
+    setTimeout(() => {
+      setNodes((n) => layoutGraph(n, [...edges, ...newEdges]));
+      setTimeout(() => rf.fitView({ padding: 0.2, duration: 300 }), 0);
+    }, 0);
+  }
+
+  // Cursor-key nudge for the selected node. Shift = 10px, otherwise 1px.
+  // Bypasses while a text field has focus so typing in the id/name inputs
+  // or the properties panel doesn't move nodes.
+  useEffect(() => {
+    if (!selectedId) return;
+    const handler = (e: KeyboardEvent) => {
+      const tag = (document.activeElement?.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+      const step = e.shiftKey ? 10 : 1;
+      const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+      const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+      if (dx === 0 && dy === 0) return;
+      e.preventDefault();
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === selectedId
+            ? { ...n, position: { x: n.position.x + dx, y: n.position.y + dy } }
+            : n,
+        ),
+      );
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedId]);
 
   const selected = useMemo(() => nodes.find((n) => n.id === selectedId) || null, [nodes, selectedId]);
   const description = useMemo(() => describeGraph(nodes, edges), [nodes, edges]);
@@ -212,6 +265,13 @@ function EditorBody() {
           >
             Layout
           </button>
+          <button
+            className="rounded border border-emerald-700 px-3 py-1 text-emerald-300 hover:bg-emerald-900/40"
+            onClick={() => setRecipesOpen(true)}
+            title="Insert a pre-wired sub-graph (detect → notify, audio alert, fall detection, etc.)"
+          >
+            + Recipe
+          </button>
         </div>
         {nodes.length > 0 && (
           <div className="border-b border-slate-800 bg-slate-950 px-3 py-2 text-xs leading-relaxed text-slate-300">
@@ -242,6 +302,8 @@ function EditorBody() {
           onChange={(cfg) => selected && updateConfig(selected.id, cfg)}
         />
       </div>
+
+      <RecipesModal open={recipesOpen} onClose={() => setRecipesOpen(false)} onInsert={insertRecipe} />
     </div>
   );
 }
