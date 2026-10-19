@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Camera Dash Platform logo" width="180">
+</p>
+
 # camera_dash
 
 A self-hosted, pluggable computer-vision platform for multiple concurrent cameras.
